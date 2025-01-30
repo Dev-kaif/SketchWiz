@@ -11,9 +11,15 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
+  const sty = {
+    backgroundColor:"black",
+    color:"white"
+  }
+
   return (
     <html lang="en">
-      <body className={``}>
+      <body style={sty} className={``}>
         {children}
       </body>
     </html>
