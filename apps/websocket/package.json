@@ -4,7 +4,7 @@
   "main": "index.ts",
   "type": "module",
   "scripts": {
-    "build": "tcs -b",
+    "build": "tsc -b",
     "dev": "tsc -b && node dist/index.js"
   },
 "dependencies": {

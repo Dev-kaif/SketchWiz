@@ -2,8 +2,9 @@
   "name": "server",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "build": "tcs -b",
+    "build": "tsc -b",
     "dev": "tsc -b && node dist/index.js"
   },
   "dependencies": {
