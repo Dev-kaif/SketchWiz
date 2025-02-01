@@ -6,8 +6,7 @@ import { CreateRoomSchema,CreateUserSchema,SigninSchema } from '@repo/common/typ
 
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '@repo/backend/config';
-import auth from './auth';
-
+import auth from './auth.js';
 console.log(JWT_SECRET);
 
 const saltRounds = 5;
