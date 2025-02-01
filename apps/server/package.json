@@ -8,6 +8,8 @@
   },
   "dependencies": {
     "@repo/typescript-config": "workspace:*",
+    "@repo/backend": "workspace:*",
+    "@repo/common": "workspace:*",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
