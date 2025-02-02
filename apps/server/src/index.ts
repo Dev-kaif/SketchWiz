@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import bcrypt from 'bcrypt';
-import { CreateRoomSchema, CreateUserSchema, SigninSchema } from '@repo/common/type';
+import { RoomSchema, CreateUserSchema, SigninSchema } from '@repo/common/type';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '@repo/backend/config';
 import auth from './auth.js';
@@ -104,25 +104,50 @@ app.post("/api/signin", async (req: Request, res: Response) => {
     res.status(200).json({
       message: "Signin successful",
       token,
-      userId: user.id
     });
     return;
   } catch (error) {
-    console.error("Signin error:", error);
-    res.status(500).json({
-      message: "Internal server error during signin"
-    });
-    return;
+      console.error("Signin error:", error);
+      res.status(500).json({
+        message: "Internal server error during signin"
+      });
+      return;
   }
 });
 
 // Protected Room Endpoint
-app.get("/api/room", auth, (req: Request, res: Response) => {
+app.get("/api/room", auth, async (req: Request, res: Response) => {
 
+  const parsedData = RoomSchema.safeParse(req.body);
 
+  if(!parsedData.success){
+    res.json({
+      message:"Incorrect Inputs"
+    })
+    return;
+  }
+  
+  try {
+      const {roomName} = parsedData.data
 
-  res.status(200).json({message: "Joined room",userId: req.userId});
-  return;
+      const userId = Number(req.userId);
+      const response = await client.room.create({
+        data:{
+          adminId:userId,
+          slug:roomName
+        }
+      })
+
+      res.status(200).json({message: "Joined room", roomId:response.id});
+      return;
+  } catch (error) {
+      console.error("Signin error:", error);
+      res.status(500).json({
+        message: "Internal server error during signin"
+      });
+      return;
+  }
+
 });
 
 
