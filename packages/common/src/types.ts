@@ -13,7 +13,7 @@ export const SigninSchema = z.object({
     password:z.string().min(8, { message: "Password must be at least 8 characters long" })
 })
 
-export const CreateRoomSchema = z.object({
+export const RoomSchema = z.object({
     roomName:z.string().min(3).max(30)
 })
 
