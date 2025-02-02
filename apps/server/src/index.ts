@@ -7,7 +7,7 @@ import { CreateRoomSchema,CreateUserSchema,SigninSchema } from '@repo/common/typ
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '@repo/backend/config';
 import auth from './auth.js';
-console.log(JWT_SECRET);
+import { client } from '@repo/db/client';
 
 const saltRounds = 5;
 
@@ -29,14 +29,22 @@ app.post("/api/signup",async (req:Request,res:Response)=>{
     
     if(!validation.success)return;
     
-    const {email,username,password}:signUpRequest = req.body;
+    const {email,username,password,name,photo}:signUpRequest = req.body;
 
     const hashPassword = await bcrypt.hash(password,saltRounds)
+        
+        await client.user.create({
+            data:{
+                username,
+                email,
+                name,
+                password:hashPassword,
+                photo
+            }
+        })
     
-    //send to backend
-
-    res.json({message:"you have sign up"})
-
+        res.json({message:"you have sign up"})
+        return;
 })
 
 app.post("/api/signin",(req:Request,res:Response)=>{
@@ -57,6 +65,5 @@ app.get("/api/room",auth,(req:RequestWithUserId ,res:Response)=>{
 })
 
 app.listen(5000,()=>{
-    console.log("running at 5000"); 
 });
 
