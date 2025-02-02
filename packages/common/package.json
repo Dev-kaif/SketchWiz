@@ -4,10 +4,7 @@
   "description": "",
   "main": "index.js",
   "type": "module",
-  "scripts": {
-    "build": "tsc -b",
-    "dev": "tsc -b && node dist/types.js"
-  },
+
   "devDependencies": {
     "@repo/typescript-config": "workspace:*"
   },

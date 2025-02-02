@@ -4,10 +4,6 @@
   "description": "",
   "main": "index.js",
   "type": "module",
-  "scripts": {
-    "build": "tsc -b",
-    "dev": "tsc -b && node dist/index.js"
-  },
   "exports":{
     "./config":"./src/index.ts"
   },
