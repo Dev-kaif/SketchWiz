@@ -5,10 +5,11 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc -b",
+    "dev": "tsc -b && node dist/index.js"
   },
   "exports":{
-    "./config":"./src/index.ts"
+    "./config":"./dist/index.js"
   },
   "dependencies": {
     "@repo/typescript-config": "workspace:*",
