@@ -12,14 +12,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
 
-  const sty = {
-    backgroundColor:"black",
-    color:"white"
-  }
 
   return (
     <html lang="en">
-      <body style={sty} className={``}>
+      <body className={`bg-white text-white`}>
         {children}
       </body>
     </html>
