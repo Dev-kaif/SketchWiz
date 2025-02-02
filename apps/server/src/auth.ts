@@ -21,9 +21,8 @@ export default function auth(req:RequestWithUserId,res:Response,next:NextFunctio
     
     try{
         const decoded: string | JwtPayload = jwt.verify(token,JWT_SECRET);
-
         if(decoded){
-            req.userId = ( decoded as JwtPayload).userId;
+            req.userId = ( decoded as JwtPayload).id;
             next();
             return;
         }else{
