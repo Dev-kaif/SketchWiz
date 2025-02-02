@@ -12,7 +12,7 @@
     "@repo/typescript-config": "workspace:*"
   },
   "exports":{
-    "./type":"./dist/types.js"
+    "./type":"./src/types.ts"
   },
   "keywords": [],
   "author": "",

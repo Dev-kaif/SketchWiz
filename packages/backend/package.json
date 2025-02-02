@@ -9,7 +9,7 @@
     "dev": "tsc -b && node dist/index.js"
   },
   "exports":{
-    "./config":"./dist/index.js"
+    "./config":"./src/index.ts"
   },
   "dependencies": {
     "@repo/typescript-config": "workspace:*",
