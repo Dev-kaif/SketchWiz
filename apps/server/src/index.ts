@@ -151,6 +151,32 @@ app.get("/api/room", auth, async (req: Request, res: Response) => {
 });
 
 
+app.get("/room/:roomId",auth,async (req:Request,res:Response)=>{
+  const roomId = Number(req.params.roomId);
+  try {
+    const messages = await client.chat.findMany({
+      where:{
+        roomId:roomId
+      },
+      orderBy:{
+        id:"desc"
+      },
+      take:50
+    })
+  
+    res.status(200).json({messages})
+
+    return;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.json({ error: error.message });
+    } else {
+      res.json({ error: "An unexpected error occurred" });
+    }
+  }
+})
+
+
 const PORT = 5000;
 
 app.listen(PORT, () => {
