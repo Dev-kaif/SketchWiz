@@ -176,6 +176,29 @@ app.get("/room/:roomId",auth,async (req:Request,res:Response)=>{
   }
 })
 
+app.get("/room/:slug",auth,async (req:Request,res:Response)=>{
+
+  const slug = req.params.slug
+  try {
+    const room = await client.room.findFirst({
+      where:{
+        slug
+      }
+    })
+  
+    res.status(200).json({room})
+
+    return;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.json({ error: error.message });
+    } else {
+      res.json({ error: "An unexpected error occurred" });
+    }
+  }
+})
+
+
 
 const PORT = 5000;
 
