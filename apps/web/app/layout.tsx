@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import '@repo/ui/styles.css'
+import { NotificationProvider } from "../Component/notification";
 
 export const metadata: Metadata = {
   title: "Next App",
@@ -15,8 +17,10 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body className={`bg-white text-white`}>
+      <body className={`bg-blue-800 text-white`}>
+      <NotificationProvider>
         {children}
+      </NotificationProvider>
       </body>
     </html>
   );

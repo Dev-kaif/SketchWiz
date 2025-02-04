@@ -2,6 +2,7 @@
 function page() {
   return (
     <div>
+      main
     </div>
   )
 }

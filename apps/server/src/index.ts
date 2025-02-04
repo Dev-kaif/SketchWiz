@@ -27,7 +27,7 @@ app.post("/api/signup", async (req: Request, res: Response) => {
   
   if (!validation.success) {
     res.status(400).json({
-      message: "Validation error",
+      message: "Invalid Credential Inputs",
       errors: validation.error.flatten()
     });
     return;
@@ -37,7 +37,8 @@ app.post("/api/signup", async (req: Request, res: Response) => {
     const { email,username,password,name,photo  } = validation.data;
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-
+    console.log(validation.data);
+    
     await client.user.create({
       data: {
         username,
