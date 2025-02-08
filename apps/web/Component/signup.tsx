@@ -43,11 +43,11 @@ function Signup({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {
         })
         addNotification("success",res.data.message)
         setProcessing(false)
+        isLoginTrue(true)
       } catch (error) {
         addNotification("error",error.response.data.message)
         setProcessing(false)
       }
-
     }
 
   return (
@@ -56,6 +56,7 @@ function Signup({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {
       <div className="text-4xl font-bold ">Create an account</div>
     </div>
     <div className="flex flex-col gap-5 w-full">
+
       <div className="flex flex-col items-center gap-3">
         <div className=" h-20 w-20 bg-red-50 rounded-full overflow-hidden">
           <Image

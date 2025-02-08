@@ -71,7 +71,7 @@ app.post("/api/signin", async (req: Request, res: Response) => {
   
   if (!validation.success) {
     res.status(400).json({
-      message: "Validation error",
+      message: "Invalid Credentials",
       errors: validation.error.flatten()
     });
     return;

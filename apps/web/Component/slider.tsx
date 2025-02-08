@@ -3,14 +3,18 @@
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Pagination } from "swiper/modules";
 import Image from "next/image";
-
 import "swiper/css";
 import "swiper/css/autoplay";
 import "swiper/css/pagination";
+import { Button } from '../../../packages/ui/src/button';
+import {CornerUpLeft, MousePointer2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 function Slider() {
+  const router = useRouter()
+
   return (
-    <div className="w-full h-full ">
+    <div className="w-full h-full">
       <Swiper
         modules={[Autoplay, Pagination]}
         autoplay={{ delay: 3000, disableOnInteraction: false }}
@@ -18,7 +22,7 @@ function Slider() {
         loop={true}
         speed={800}
         spaceBetween={2}
-        className="w-full h-full  rounded-lg overflow-hidden"
+        className="w-full h-full  rounded-lg overflow-hidden relative"
       >
         <SwiperSlide>
           <Image
@@ -47,6 +51,18 @@ function Slider() {
             unoptimized
           />
         </SwiperSlide>
+        
+        <div className="absolute top-2 z-10 right-0 flex justify-between items-center w-full px-3">
+        <MousePointer2 className="w-14 h-14 text-blue-500 fill-blue-500"/>
+          <Button size="text-sm" onClickHandler={()=>{
+            router.push('/')
+          }} className="secondary">
+            <div className="flex gap-2 items-center justify-center" >
+              <span>Homepage</span> 
+              <CornerUpLeft className="text-sm"/>
+            </div>
+          </Button>
+        </div>
       </Swiper>
     </div>
   );

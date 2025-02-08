@@ -14,7 +14,7 @@ export const Button = ({ children, className, onClickHandler,size,processing }: 
 
   const buttonStyle = {
     primary:`bg-[${processing?"#4f3e80":"#6D54B5"}] py-2 px-5 rounded-md w-full ${size}`,
-    secondary:`bg-[#665BA1] rounded-full px-4 w-full py-1 ${size}`
+    secondary:`bg-[#665BA1] rounded-full px-4 py-1 ${size}`
   }
 
   const style = buttonStyle[className] || ""

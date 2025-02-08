@@ -6,7 +6,7 @@ import Signup from "../../Component/signup";
 import Login from "../../Component/login";
 
 function Page() {
-  const [login, setLogin] = useState<boolean>(true);
+  const [login, setLogin] = useState<boolean>();
 
   return (
     <div className="bg-[#686279] flex items-center justify-center h-screen">

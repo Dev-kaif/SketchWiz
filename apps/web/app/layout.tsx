@@ -17,7 +17,7 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body className={`bg-blue-800 text-white`}>
+      <body className={` `}>
       <NotificationProvider>
         {children}
       </NotificationProvider>
