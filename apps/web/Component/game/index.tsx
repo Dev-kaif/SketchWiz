@@ -11,7 +11,8 @@ type Shape =
       x3: number;
       y3: number;
     }
-  | { type: "freehand"; points: { x: number; y: number }[] };
+  | { type: "freehand"; points: { x: number; y: number }[] }
+  | { type: "text"; x: number; y: number; content: string };
 
 // Global array to store drawn shapes.
 const existingShape: Shape[] = [];
@@ -19,7 +20,7 @@ const existingShape: Shape[] = [];
 export default function initDraw(
   canvas: HTMLCanvasElement,
   modeRef: React.RefObject<
-    "rect" | "circle" | "line" | "triangle" | "freehand" | null
+    "rect" | "circle" | "line" | "triangle" | "freehand" | "text" | null
   >
 ) {
   const ctx = canvas.getContext("2d");
@@ -88,10 +89,101 @@ export default function initDraw(
         ctx.moveTo(shape.points?.[0]?.x || 0, shape.points?.[0]?.y || 0); // Safe access
         shape.points.forEach((p) => ctx.lineTo(p.x, p.y));
         ctx.stroke();
+      } else if(shape.type == "text"){
+        ctx.font = "20px Arial"; // ✅ Set font size and style
+        ctx.fillStyle = "#ffffff"; // ✅ Set text color
+        ctx.fillText(shape.content, shape.x, shape.y); // ✅ Draw text
       }
     });
     ctx.restore();
   }
+  
+  canvas.addEventListener("dblclick", (e: MouseEvent) => {
+    if (modeRef.current !== "text") return;
+  
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+  
+    const textX = (e.clientX - offsetX) / scale;
+    const textY = (e.clientY - offsetY) / scale;
+    let currentText = "";
+    let showCursor = true;
+  
+    function drawTextPreview() {
+      renderAll(); // Redraw canvas to clear previous text
+  
+      if (!ctx) return;
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+      ctx.font = "20px Arial";
+      ctx.fillStyle = "white";
+  
+      // Append cursor if active
+      const displayText = showCursor ? currentText + "|" : currentText;
+      ctx.fillText(displayText, textX, textY);
+  
+      ctx.restore();
+    }
+  
+    function handleKeydown(event: KeyboardEvent) {
+      if (event.key === "Enter") {
+        saveText();
+      } else if (event.key === "Backspace") {
+        // Remove last character
+        currentText = currentText.slice(0, -1);
+        drawTextPreview();
+      } else if (event.key.length === 1) {
+        // Append typed character
+        currentText += event.key;
+        drawTextPreview();
+      }
+    }
+  
+    function handleOutsideClick(event: MouseEvent) {
+      if (event.target !== canvas) return; // Ignore clicks outside the canvas
+  
+      // If user clicks elsewhere but has typed something, save it
+      if (currentText.trim().length > 0) {
+        saveText();
+      } else {
+        cleanup();
+      }
+    }
+  
+    function saveText() {
+      if (currentText.trim().length > 0) {
+        existingShape.push({ type: "text", x: textX, y: textY, content: currentText });
+      }
+      cleanup();
+    }
+  
+    function cleanup() {
+      clearInterval(cursorInterval);
+      document.removeEventListener("keydown", handleKeydown);
+      document.removeEventListener("mousedown", handleOutsideClick);
+      renderAll(); // Redraw without cursor
+    }
+  
+    // **Draw cursor immediately after double-click**
+    drawTextPreview();
+  
+    // **Blinking cursor effect**
+    const cursorInterval = setInterval(() => {
+      showCursor = !showCursor;
+      drawTextPreview();
+    }, 500);
+  
+    // **Add event listeners**
+    document.addEventListener("keydown", handleKeydown);
+    document.addEventListener("mousedown", handleOutsideClick);
+  });
+  
+  
+  
+  
+  
+  
 
   // Prevent the default context menu so that right-click can be used for panning.
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
