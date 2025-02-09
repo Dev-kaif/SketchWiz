@@ -17,13 +17,11 @@ type Shape =
 // Global array to store drawn shapes.
 const existingShape: Shape[] = []
 
-export default function initDraw(canvas: HTMLCanvasElement) {
-  // Set canvas dimensions.
-  canvas.width = window.innerWidth
-  canvas.height = window.innerHeight
+export default function initDraw(canvas: HTMLCanvasElement,modeRef:React.RefObject<"rect" | "circle" | null>) {
 
   const ctx = canvas.getContext("2d")
-  if (!ctx) return
+  if (!ctx) return;
+  ctx.strokeStyle = "#ffffff"
 
   // Current transformation (world) parameters.
   let offsetX = 0
@@ -41,7 +39,7 @@ export default function initDraw(canvas: HTMLCanvasElement) {
   // A helper function to render all shapes using the current transform.
   function renderAll() {
     if(!ctx)return;
-
+    
     // Clear the entire canvas.
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.save()
@@ -49,11 +47,10 @@ export default function initDraw(canvas: HTMLCanvasElement) {
     // Apply pan and zoom.
     ctx.translate(offsetX, offsetY)
     ctx.scale(scale, scale)
-    
+  
     // Render each saved shape.
     existingShape.forEach((shape) => {
       if (shape.type === "rectriangle") {
-        ctx.strokeStyle = "#ffffff"
         ctx.strokeRect(shape.x, shape.y, shape.width, shape.height)
       }
     })
@@ -65,18 +62,18 @@ export default function initDraw(canvas: HTMLCanvasElement) {
 
   // Mousedown: differentiate between drawing (left button) and panning (right button).
   canvas.addEventListener("mousedown", (e) => {
-    if (e.button === 0) {
-      // LEFT BUTTON: Begin drawing.
-      isDrawing = true
-      // Convert screen coordinates to world coordinates.
-      startX = (e.clientX - offsetX) / scale
-      startY = (e.clientY - offsetY) / scale
-    } else if (e.button === 2) {
-      // RIGHT BUTTON: Begin panning.
-      isPanning = true
-      panStartX = e.clientX - offsetX
-      panStartY = e.clientY - offsetY
-    }
+     if (e.button === 2) {
+        // RIGHT BUTTON: Begin panning.
+        isPanning = true
+        panStartX = e.clientX - offsetX
+        panStartY = e.clientY - offsetY
+        return;
+      }
+        // LEFT BUTTON: Begin drawing.
+        isDrawing = true
+        // Convert screen coordinates to world coordinates.
+        startX = (e.clientX - offsetX) / scale
+        startY = (e.clientY - offsetY) / scale
   })
 
   // Mousemove: update drawing preview or panning.
@@ -93,9 +90,13 @@ export default function initDraw(canvas: HTMLCanvasElement) {
       ctx.save()
       ctx.translate(offsetX, offsetY)
       ctx.scale(scale, scale)
-      ctx.strokeStyle = "#ffffff"
-      ctx.strokeRect(startX, startY, currentX - startX, currentY - startY)
+
+
+      if(modeRef.current == "rect"){
+        ctx.strokeRect(startX, startY, currentX - startX, currentY - startY)
+      }
       ctx.restore()
+
     } else if (isPanning) {
       // Update pan offsets.
       offsetX = e.clientX - panStartX
@@ -111,16 +112,20 @@ export default function initDraw(canvas: HTMLCanvasElement) {
       isDrawing = false
       const endX = (e.clientX - offsetX) / scale
       const endY = (e.clientY - offsetY) / scale
-      const width = endX - startX
-      const height = endY - startY
-      existingShape.push({
-        type: "rectriangle",
-        x: startX,
-        y: startY,
-        width,
-        height,
-      })
+
+      if(modeRef.current == "rect"){
+        const width = endX - startX
+        const height = endY - startY
+        existingShape.push({
+          type: "rectriangle",
+          x: startX,
+          y: startY,
+          width,
+          height,
+        })
+      }
       renderAll()
+
     } else if (e.button === 2 && isPanning) {
       // End panning.
       isPanning = false
