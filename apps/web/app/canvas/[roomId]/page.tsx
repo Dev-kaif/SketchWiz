@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import initDraw from "../../../Component/game";
 
-type DrawingMode = "rect" | "circle" | null;
+type DrawingMode = "rect" | "circle" | "line" | "triangle" |null;
 
 
 function Page() {
@@ -46,6 +46,18 @@ function Page() {
           setMode("circle")
         }}
         >Circle</div>
+        <div
+        className="bg-blue-500 px-3 py-1 rounded-full cursor-pointer"
+        onClick={()=>{
+          setMode("line")
+        }}
+        >Line</div>
+        <div
+        className="bg-blue-500 px-3 py-1 rounded-full cursor-pointer"
+        onClick={()=>{
+          setMode("triangle")
+        }}
+        >Triangle</div>
       </div>
     </div>
   )

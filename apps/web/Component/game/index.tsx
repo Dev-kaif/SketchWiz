@@ -1,6 +1,8 @@
 type Shape =
-    { type: "rectangle"; x: number; y: number; width: number; height: number }
+  | { type: "rectangle"; x: number; y: number; width: number; height: number }
   | { type: "circle"; x: number; y: number; radiusX: number; radiusY: number }
+  | { type: "line"; x1: number; y1: number; x2: number; y2: number }
+  | {type: "triangle"; x1: number; y1: number; x2: number; y2: number; x3: number; y3: number;};
   
 
 // Global array to store drawn shapes.
@@ -8,11 +10,12 @@ const existingShape: Shape[] = [];
 
 export default function initDraw(
   canvas: HTMLCanvasElement,
-  modeRef: React.RefObject<"rect" | "circle" | null>
+  modeRef: React.RefObject<"rect" | "circle" | "line" | "triangle" | null>
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 3;
 
   // Current transformation (world) parameters.
   let offsetX = 0;
@@ -41,7 +44,7 @@ export default function initDraw(
 
     // Render each saved shape.
     existingShape.forEach((shape) => {
-      if (shape.type === "rectriangle") {
+      if (shape.type === "rectangle") {
         ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
       } else if (shape.type === "circle") {
         ctx.beginPath();
@@ -54,6 +57,18 @@ export default function initDraw(
           0,
           Math.PI * 2
         );
+        ctx.stroke();
+      } else if (shape.type === "line") {
+        ctx.beginPath();
+        ctx.moveTo(shape.x1, shape.y1);
+        ctx.lineTo(shape.x2, shape.y2);
+        ctx.stroke();
+      } else if (shape.type == "triangle") {
+        ctx.beginPath();
+        ctx.moveTo(shape.x1, shape.y1);
+        ctx.lineTo(shape.x2, shape.y2);
+        ctx.lineTo(shape.x3, shape.y3);
+        ctx.closePath();
         ctx.stroke();
       }
     });
@@ -107,6 +122,25 @@ export default function initDraw(
         ctx.beginPath();
         ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
         ctx.stroke();
+      } else if (modeRef.current == "line") {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(currentX, currentY);
+        ctx.stroke();
+      } else if (modeRef.current == "triangle") {
+        const dx = currentX - startX;
+        const dy = currentY - startY;
+        const midX = (startX + currentX) / 2;
+        const midY = (startY + currentY) / 2;
+        const thirdX = midX - dy * (Math.sqrt(3) / 2);
+        const thirdY = midY - dx * (Math.sqrt(3) / 2);
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(currentX, currentY);
+        ctx.lineTo(thirdX, thirdY);
+        ctx.closePath();
+        ctx.stroke();
       }
       ctx.restore();
     } else if (isPanning) {
@@ -129,7 +163,7 @@ export default function initDraw(
         const width = endX - startX;
         const height = endY - startY;
         existingShape.push({
-          type: "rectriangle",
+          type: "rectangle",
           x: startX,
           y: startY,
           width,
@@ -148,6 +182,31 @@ export default function initDraw(
           radiusX,
           radiusY,
         });
+      } else if (modeRef.current == "line") {
+        existingShape.push({
+          type: "line",
+          x1: startX,
+          y1: startY,
+          x2: endX,
+          y2: endY,
+        });
+      } else if (modeRef.current == "triangle") {
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const midX = (startX + endX) / 2;
+        const midY = (startY + endY) / 2;
+        const thirdX = midX - dy * (Math.sqrt(3) / 2);
+        const thirdY = midY - dx * (Math.sqrt(3) / 2);
+
+        existingShape.push({
+          type: "triangle",
+          x1: startX,
+          y1: startY,
+          x2: endX,
+          y2: endY,
+          x3: thirdX,
+          y3: thirdY,
+        });
       }
       renderAll();
     } else if (e.button === 2 && isPanning) {
@@ -156,14 +215,6 @@ export default function initDraw(
     }
   });
 
-  // In case the mouse leaves the canvas, cancel any ongoing interactions.
-  canvas.addEventListener("mouseleave", () => {
-    if (isDrawing || isPanning) {
-      isDrawing = false;
-      isPanning = false;
-      renderAll();
-    }
-  });
 
   // Define minimum and maximum scale values.
   const minScale = 0.4;
