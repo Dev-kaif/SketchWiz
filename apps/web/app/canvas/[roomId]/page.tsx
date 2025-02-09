@@ -15,9 +15,11 @@ function Page() {
 
   },[CanvasRef])
 
+
   return (
     <div className="text-white">
-      <canvas className="absolute top-0 left-0 bg-black"  ref={CanvasRef}></canvas>
+      <canvas className="absolute top-0 left-0 bg-black"        
+      ref={CanvasRef}></canvas>
       <div className="absolute bottom-0 right-0">
         <div 
         className="bg-blue-500 px-3 py-1 rounded-full cursor-pointer"
