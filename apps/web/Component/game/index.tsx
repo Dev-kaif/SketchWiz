@@ -1,146 +1,169 @@
-
 type Shape =
-  | {
-      type: "rectriangle"
-      x: number
-      y: number
-      width: number
-      height: number
-    }
-  | {
-      type: "circle"
-      x: number
-      y: number
-      radius: number
-    }
+    { type: "rectangle"; x: number; y: number; width: number; height: number }
+  | { type: "circle"; x: number; y: number; radiusX: number; radiusY: number }
+  
 
 // Global array to store drawn shapes.
-const existingShape: Shape[] = []
+const existingShape: Shape[] = [];
 
-export default function initDraw(canvas: HTMLCanvasElement,modeRef:React.RefObject<"rect" | "circle" | null>) {
-
-  const ctx = canvas.getContext("2d")
+export default function initDraw(
+  canvas: HTMLCanvasElement,
+  modeRef: React.RefObject<"rect" | "circle" | null>
+) {
+  const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  ctx.strokeStyle = "#ffffff"
+  ctx.strokeStyle = "#ffffff";
 
   // Current transformation (world) parameters.
-  let offsetX = 0
-  let offsetY = 0
-  let scale = 1
+  let offsetX = 0;
+  let offsetY = 0;
+  let scale = 1;
 
   // State flags and starting coordinates.
-  let isDrawing = false
-  let isPanning = false
-  let startX = 0
-  let startY = 0
-  let panStartX = 0
-  let panStartY = 0
+  let isDrawing = false;
+  let isPanning = false;
+  let startX = 0;
+  let startY = 0;
+  let panStartX = 0;
+  let panStartY = 0;
 
   // A helper function to render all shapes using the current transform.
   function renderAll() {
-    if(!ctx)return;
-    
+    if (!ctx) return;
+
     // Clear the entire canvas.
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.save()
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
 
     // Apply pan and zoom.
-    ctx.translate(offsetX, offsetY)
-    ctx.scale(scale, scale)
-  
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
+
     // Render each saved shape.
     existingShape.forEach((shape) => {
       if (shape.type === "rectriangle") {
-        ctx.strokeRect(shape.x, shape.y, shape.width, shape.height)
+        ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+      } else if (shape.type === "circle") {
+        ctx.beginPath();
+        ctx.ellipse(
+          shape.x,
+          shape.y,
+          shape.radiusX,
+          shape.radiusY,
+          0,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
       }
-    })
-    ctx.restore()
+    });
+    ctx.restore();
   }
 
   // Prevent the default context menu so that right-click can be used for panning.
-  canvas.addEventListener("contextmenu", (e) => e.preventDefault())
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // Mousedown: differentiate between drawing (left button) and panning (right button).
   canvas.addEventListener("mousedown", (e) => {
-     if (e.button === 2) {
-        // RIGHT BUTTON: Begin panning.
-        isPanning = true
-        panStartX = e.clientX - offsetX
-        panStartY = e.clientY - offsetY
-        return;
-      }
-        // LEFT BUTTON: Begin drawing.
-        isDrawing = true
-        // Convert screen coordinates to world coordinates.
-        startX = (e.clientX - offsetX) / scale
-        startY = (e.clientY - offsetY) / scale
-  })
+    if (e.button === 2) {
+      // RIGHT BUTTON: Begin panning.
+      isPanning = true;
+      panStartX = e.clientX - offsetX;
+      panStartY = e.clientY - offsetY;
+      return;
+    }
+    // LEFT BUTTON: Begin drawing.
+    isDrawing = true;
+    // Convert screen coordinates to world coordinates.
+    startX = (e.clientX - offsetX) / scale;
+    startY = (e.clientY - offsetY) / scale;
+  });
 
   // Mousemove: update drawing preview or panning.
   canvas.addEventListener("mousemove", (e) => {
     if (isDrawing) {
       // Compute current pointer world coordinates.
-      const currentX = (e.clientX - offsetX) / scale
-      const currentY = (e.clientY - offsetY) / scale
+      const currentX = (e.clientX - offsetX) / scale;
+      const currentY = (e.clientY - offsetY) / scale;
 
       // Clear and redraw all existing shapes.
-      renderAll()
+      renderAll();
 
       // Draw the preview shape.
-      ctx.save()
-      ctx.translate(offsetX, offsetY)
-      ctx.scale(scale, scale)
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
 
+      if (modeRef.current == "rect") {
+        ctx.strokeRect(startX, startY, currentX - startX, currentY - startY);
+      } else if (modeRef.current === "circle") {
+        // Calculate bounding box and derive center and radii.
+        const centerX = (startX + currentX) / 2;
+        const centerY = (startY + currentY) / 2;
 
-      if(modeRef.current == "rect"){
-        ctx.strokeRect(startX, startY, currentX - startX, currentY - startY)
+        const radiusX = Math.abs(currentX - startX) / 2;
+        const radiusY = Math.abs(currentY - startY) / 2;
+
+        ctx.beginPath();
+        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+        ctx.stroke();
       }
-      ctx.restore()
-
+      ctx.restore();
     } else if (isPanning) {
       // Update pan offsets.
-      offsetX = e.clientX - panStartX
-      offsetY = e.clientY - panStartY
-      renderAll()
+      offsetX = e.clientX - panStartX;
+      offsetY = e.clientY - panStartY;
+      renderAll();
     }
-  })
+  });
 
   // Mouseup: finalize drawing or end panning.
   canvas.addEventListener("mouseup", (e) => {
     if (e.button === 0 && isDrawing) {
       // Finish drawing.
-      isDrawing = false
-      const endX = (e.clientX - offsetX) / scale
-      const endY = (e.clientY - offsetY) / scale
+      isDrawing = false;
+      const endX = (e.clientX - offsetX) / scale;
+      const endY = (e.clientY - offsetY) / scale;
 
-      if(modeRef.current == "rect"){
-        const width = endX - startX
-        const height = endY - startY
+      if (modeRef.current == "rect") {
+        const width = endX - startX;
+        const height = endY - startY;
         existingShape.push({
           type: "rectriangle",
           x: startX,
           y: startY,
           width,
           height,
-        })
+        });
+      } else if (modeRef.current === "circle") {
+        // Compute the ellipse using the bounding box.
+        const centerX = (startX + endX) / 2;
+        const centerY = (startY + endY) / 2;
+        const radiusX = Math.abs(endX - startX) / 2;
+        const radiusY = Math.abs(endY - startY) / 2;
+        existingShape.push({
+          type: "circle",
+          x: centerX,
+          y: centerY,
+          radiusX,
+          radiusY,
+        });
       }
-      renderAll()
-
+      renderAll();
     } else if (e.button === 2 && isPanning) {
       // End panning.
-      isPanning = false
+      isPanning = false;
     }
-  })
+  });
 
   // In case the mouse leaves the canvas, cancel any ongoing interactions.
   canvas.addEventListener("mouseleave", () => {
     if (isDrawing || isPanning) {
-      isDrawing = false
-      isPanning = false
-      renderAll()
+      isDrawing = false;
+      isPanning = false;
+      renderAll();
     }
-  })
-
+  });
 
   // Define minimum and maximum scale values.
   const minScale = 0.4;
@@ -172,7 +195,6 @@ export default function initDraw(canvas: HTMLCanvasElement,modeRef:React.RefObje
     renderAll();
   });
 
-
   // Initial render.
-  renderAll()
+  renderAll();
 }
