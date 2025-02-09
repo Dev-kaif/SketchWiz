@@ -2,15 +2,25 @@ type Shape =
   | { type: "rectangle"; x: number; y: number; width: number; height: number }
   | { type: "circle"; x: number; y: number; radiusX: number; radiusY: number }
   | { type: "line"; x1: number; y1: number; x2: number; y2: number }
-  | {type: "triangle"; x1: number; y1: number; x2: number; y2: number; x3: number; y3: number;};
-  
+  | {
+      type: "triangle";
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      x3: number;
+      y3: number;
+    }
+  | { type: "freehand"; points: { x: number; y: number }[] };
 
 // Global array to store drawn shapes.
 const existingShape: Shape[] = [];
 
 export default function initDraw(
   canvas: HTMLCanvasElement,
-  modeRef: React.RefObject<"rect" | "circle" | "line" | "triangle" | null>
+  modeRef: React.RefObject<
+    "rect" | "circle" | "line" | "triangle" | "freehand" | null
+  >
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -29,6 +39,9 @@ export default function initDraw(
   let startY = 0;
   let panStartX = 0;
   let panStartY = 0;
+
+  let isFreehandDrawing = false;
+  let freehandPoints: { x: number; y: number }[] = [];
 
   // A helper function to render all shapes using the current transform.
   function renderAll() {
@@ -70,6 +83,11 @@ export default function initDraw(
         ctx.lineTo(shape.x3, shape.y3);
         ctx.closePath();
         ctx.stroke();
+      } else if (shape.type == "freehand") {
+        ctx.beginPath();
+        ctx.moveTo(shape.points?.[0]?.x || 0, shape.points?.[0]?.y || 0); // Safe access
+        shape.points.forEach((p) => ctx.lineTo(p.x, p.y));
+        ctx.stroke();
       }
     });
     ctx.restore();
@@ -87,6 +105,19 @@ export default function initDraw(
       panStartY = e.clientY - offsetY;
       return;
     }
+
+    if (modeRef.current === "freehand") {
+      // Start drawing freehand (store the first point)
+      isFreehandDrawing = true;
+      freehandPoints = [
+        {
+          x: (e.clientX - offsetX) / scale,
+          y: (e.clientY - offsetY) / scale,
+        },
+      ];
+      return;
+    }
+
     // LEFT BUTTON: Begin drawing.
     isDrawing = true;
     // Convert screen coordinates to world coordinates.
@@ -96,6 +127,33 @@ export default function initDraw(
 
   // Mousemove: update drawing preview or panning.
   canvas.addEventListener("mousemove", (e) => {
+    if (isFreehandDrawing) {
+      // Continuously add points as the mouse moves
+      const newX = (e.clientX - offsetX) / scale;
+      const newY = (e.clientY - offsetY) / scale;
+      freehandPoints.push({ x: newX, y: newY });
+
+      // Clear and redraw all existing shapes
+      renderAll();
+
+      // Render the freehand stroke on the canvas
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+      ctx.beginPath();
+      ctx.moveTo(freehandPoints[0]?.x||0, freehandPoints[0]?.y||0);
+
+      // Draw lines connecting each point in the freehand path
+      freehandPoints.forEach((point, index) => {
+        if (index === 0) return;
+        ctx.lineTo(point.x, point.y);
+      });
+
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+
     if (isDrawing) {
       // Compute current pointer world coordinates.
       const currentX = (e.clientX - offsetX) / scale;
@@ -153,6 +211,20 @@ export default function initDraw(
 
   // Mouseup: finalize drawing or end panning.
   canvas.addEventListener("mouseup", (e) => {
+    if (e.button === 0 && isFreehandDrawing) {
+      // Finish freehand drawing
+      isFreehandDrawing = false;
+
+      // Save the freehand shape
+      existingShape.push({
+        type: "freehand",
+        points: freehandPoints,
+      });
+
+      renderAll(); // Re-render all shapes
+      return;
+    }
+
     if (e.button === 0 && isDrawing) {
       // Finish drawing.
       isDrawing = false;
@@ -214,7 +286,6 @@ export default function initDraw(
       isPanning = false;
     }
   });
-
 
   // Define minimum and maximum scale values.
   const minScale = 0.4;

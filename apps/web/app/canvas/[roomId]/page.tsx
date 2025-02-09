@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import initDraw from "../../../Component/game";
 
-type DrawingMode = "rect" | "circle" | "line" | "triangle" |null;
+type DrawingMode = "rect" | "circle" | "line" | "triangle" | "freehand" | null;
 
 
 function Page() {
@@ -58,6 +58,12 @@ function Page() {
           setMode("triangle")
         }}
         >Triangle</div>
+        <div
+        className="bg-blue-500 px-3 py-1 rounded-full cursor-pointer"
+        onClick={()=>{
+          setMode("freehand")
+        }}
+        >Pencil</div>
       </div>
     </div>
   )
