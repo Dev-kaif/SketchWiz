@@ -1,7 +1,31 @@
 type Shape =
-  | { type: "rectangle"; x: number; y: number; width: number; height: number }
-  | { type: "circle"; x: number; y: number; radiusX: number; radiusY: number }
-  | { type: "line"; x1: number; y1: number; x2: number; y2: number }
+  | {
+      type: "rectangle";
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      strokeColor: string;
+      strokeWidth: number;
+    }
+  | {
+      type: "circle";
+      x: number;
+      y: number;
+      radiusX: number;
+      radiusY: number;
+      strokeColor: string;
+      strokeWidth: number;
+    }
+  | {
+      type: "line";
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      strokeColor: string;
+      strokeWidth: number;
+    }
   | {
       type: "triangle";
       x1: number;
@@ -10,11 +34,36 @@ type Shape =
       y2: number;
       x3: number;
       y3: number;
+      strokeColor: string;
+      strokeWidth: number;
     }
-  | { type: "freehand"; points: { x: number; y: number }[] }
-  | { type: "text"; x: number; y: number; content: string }
-  | { type: "eraser"; points: { x: number; y: number }[]; size: number }
-  | { type: "arrow"; x1: number; y1: number; x2: number; y2: number };
+  | {
+      type: "freehand";
+      points: { x: number; y: number }[];
+      strokeColor: string;
+      strokeWidth: number;
+    }
+  | {
+      type: "text";
+      x: number;
+      y: number;
+      content: string;
+      strokeColor: string;
+    }
+  | {
+      type: "eraser";
+      points: { x: number; y: number }[];
+      size: number;
+    }
+  | {
+      type: "arrow";
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      strokeColor: string;
+      strokeWidth: number;
+    };
 
 // Global array to store drawn shapes.
 const existingShape: Shape[] = [];
@@ -22,13 +71,21 @@ const existingShape: Shape[] = [];
 export default function initDraw(
   canvas: HTMLCanvasElement,
   modeRef: React.RefObject<
-    "rect" | "circle" | "line" | "triangle" | "freehand" | "text" | "eraser" | "arrow" | null
-  >
+    | "rect"
+    | "circle"
+    | "line"
+    | "triangle"
+    | "freehand"
+    | "text"
+    | "eraser"
+    | "arrow"
+    | null
+  >,
+  strokeColorRef: React.RefObject<string>,
+  strokeWidthRef: React.RefObject<number>
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 3;
 
   // Current transformation (world) parameters.
   let offsetX = 0;
@@ -53,7 +110,6 @@ export default function initDraw(
   // A helper function to render all shapes using the current transform.
   function renderAll() {
     if (!ctx) return;
-
     // Clear the entire canvas.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
@@ -64,9 +120,21 @@ export default function initDraw(
 
     // Render each saved shape.
     existingShape.forEach((shape) => {
+      // For a more hand-drawn "ink" effect, we set common properties:
+      ctx.save();
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      // A slight shadow simulates a brush/ink effect.
+      ctx.shadowBlur = 2;
+      ctx.shadowColor = shape.strokeColor || "#000";
+
       if (shape.type === "rectangle") {
+        ctx.strokeStyle = shape.strokeColor;
+        ctx.lineWidth = shape.strokeWidth;
         ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
       } else if (shape.type === "circle") {
+        ctx.strokeStyle = shape.strokeColor;
+        ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
         ctx.ellipse(
           shape.x,
@@ -79,11 +147,15 @@ export default function initDraw(
         );
         ctx.stroke();
       } else if (shape.type === "line") {
+        ctx.strokeStyle = shape.strokeColor;
+        ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
         ctx.moveTo(shape.x1, shape.y1);
         ctx.lineTo(shape.x2, shape.y2);
         ctx.stroke();
       } else if (shape.type === "triangle") {
+        ctx.strokeStyle = shape.strokeColor;
+        ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
         ctx.moveTo(shape.x1, shape.y1);
         ctx.lineTo(shape.x2, shape.y2);
@@ -91,58 +163,64 @@ export default function initDraw(
         ctx.closePath();
         ctx.stroke();
       } else if (shape.type === "freehand") {
+        ctx.strokeStyle = shape.strokeColor;
+        ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
-        ctx.moveTo(shape.points?.[0]?.x || 0, shape.points?.[0]?.y || 0); // Safe access
+        ctx.moveTo(shape.points?.[0]?.x || 0, shape.points?.[0]?.y || 0);
         shape.points.forEach((p, index) => {
           if (index === 0) return;
           ctx.lineTo(p.x, p.y);
         });
         ctx.stroke();
       } else if (shape.type === "text") {
-        ctx.font = "1.5vw Arial"; // Set font size and style
-        ctx.fillStyle = "#ffffff"; // Set text color
-        ctx.fillText(shape.content, shape.x, shape.y); // Draw text
+        // For text, you might want a sharper rendering; adjust shadow as needed.
+        ctx.font = "1.5vw Arial";
+        ctx.fillStyle = shape.strokeColor;
+        ctx.fillText(shape.content, shape.x, shape.y);
       } else if (shape.type === "eraser") {
+        ctx.restore(); // Remove the brush settings for eraser.
         ctx.save();
         ctx.globalCompositeOperation = "destination-out";
         ctx.lineWidth = shape.size;
         ctx.lineJoin = "round";
         ctx.lineCap = "round";
         ctx.beginPath();
-        ctx.moveTo(shape.points?.[0]?.x || 0, shape.points?.[0]?.y || 0); // Safe access
+        ctx.moveTo(shape.points?.[0]?.x || 0, shape.points?.[0]?.y || 0);
         shape.points.forEach((p, index) => {
           if (index === 0) return;
           ctx.lineTo(p.x, p.y);
         });
         ctx.stroke();
-        ctx.restore();
       } else if (shape.type === "arrow") {
+        ctx.strokeStyle = shape.strokeColor;
+        ctx.lineWidth = shape.strokeWidth;
         // Draw the main line.
         ctx.beginPath();
         ctx.moveTo(shape.x1, shape.y1);
         ctx.lineTo(shape.x2, shape.y2);
         ctx.stroke();
-      
-        // Set fill style for the arrowhead.
-        ctx.fillStyle = "#ffffff";  // Ensure the arrowhead is white.
-      
-        // Draw the arrowhead.
-        const headLength = 10;
-        const angle = Math.atan2(shape.y2 - shape.y1, shape.x2 - shape.x1);
+
+        // Improve arrowhead: adjust its size based on strokeWidth and add smoother proportions.
+        const dx = shape.x2 - shape.x1;
+        const dy = shape.y2 - shape.y1;
+        const angle = Math.atan2(dy, dx);
+        const headLength = Math.max(10, shape.strokeWidth * 5);
+        // For a sharper arrowhead, using a smaller angle (e.g., π/7)
         ctx.beginPath();
         ctx.moveTo(shape.x2, shape.y2);
         ctx.lineTo(
-          shape.x2 - headLength * Math.cos(angle - Math.PI / 6),
-          shape.y2 - headLength * Math.sin(angle - Math.PI / 6)
+          shape.x2 - headLength * Math.cos(angle - Math.PI / 7),
+          shape.y2 - headLength * Math.sin(angle - Math.PI / 7)
         );
         ctx.lineTo(
-          shape.x2 - headLength * Math.cos(angle + Math.PI / 6),
-          shape.y2 - headLength * Math.sin(angle + Math.PI / 6)
+          shape.x2 - headLength * Math.cos(angle + Math.PI / 7),
+          shape.y2 - headLength * Math.sin(angle + Math.PI / 7)
         );
         ctx.closePath();
+        ctx.fillStyle = shape.strokeColor;
         ctx.fill();
       }
-      
+      ctx.restore();
     });
     ctx.restore();
   }
@@ -150,7 +228,6 @@ export default function initDraw(
   // Text input handling.
   canvas.addEventListener("dblclick", (e: MouseEvent) => {
     if (modeRef.current !== "text") return;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -160,19 +237,15 @@ export default function initDraw(
     let showCursor = true;
 
     function drawTextPreview() {
-      renderAll(); // Redraw canvas to clear previous text
-
+      renderAll();
       if (!ctx) return;
       ctx.save();
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
       ctx.font = "1.5vw Arial";
-      ctx.fillStyle = "white";
-
-      // Append cursor if active.
+      ctx.fillStyle = strokeColorRef.current;
       const displayText = showCursor ? currentText + "|" : currentText;
       ctx.fillText(displayText, textX, textY);
-
       ctx.restore();
     }
 
@@ -204,6 +277,7 @@ export default function initDraw(
           x: textX,
           y: textY,
           content: currentText,
+          strokeColor: strokeColorRef.current,
         });
       }
       cleanup();
@@ -217,31 +291,27 @@ export default function initDraw(
     }
 
     drawTextPreview();
-
     const cursorInterval = setInterval(() => {
       showCursor = !showCursor;
       drawTextPreview();
     }, 500);
-
     document.addEventListener("keydown", handleKeydown);
     document.addEventListener("mousedown", handleOutsideClick);
   });
 
-  // Prevent the default context menu so that right-click can be used for panning.
+  // Prevent default context menu for panning.
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // Mousedown: differentiate between drawing (left button), panning (right button),
   // freehand drawing, and erasing.
   canvas.addEventListener("mousedown", (e) => {
     if (e.button === 2) {
-      // RIGHT BUTTON: Begin panning.
       isPanning = true;
       panStartX = e.clientX - offsetX;
       panStartY = e.clientY - offsetY;
       return;
     }
 
-    // Handle freehand drawing or erasing.
     if (modeRef.current === "freehand" || modeRef.current === "eraser") {
       if (modeRef.current === "eraser") {
         isErasing = true;
@@ -270,15 +340,13 @@ export default function initDraw(
     startY = (e.clientY - offsetY) / scale;
   });
 
-  // Mousemove: update drawing preview, freehand drawing, erasing, or panning.
+  // Mousemove: update drawing preview.
   canvas.addEventListener("mousemove", (e) => {
     if (isErasing) {
       const newX = (e.clientX - offsetX) / scale;
       const newY = (e.clientY - offsetY) / scale;
       eraserPoints.push({ x: newX, y: newY });
-
       renderAll();
-      // Draw the eraser preview.
       ctx.save();
       ctx.globalCompositeOperation = "destination-out";
       ctx.lineWidth = eraserSize;
@@ -299,11 +367,14 @@ export default function initDraw(
       const newX = (e.clientX - offsetX) / scale;
       const newY = (e.clientY - offsetY) / scale;
       freehandPoints.push({ x: newX, y: newY });
-
       renderAll();
       ctx.save();
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
+      ctx.strokeStyle = strokeColorRef.current;
+      ctx.lineWidth = strokeWidthRef.current;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
       ctx.beginPath();
       ctx.moveTo(freehandPoints[0]?.x || 0, freehandPoints[0]?.y || 0);
       freehandPoints.forEach((point, index) => {
@@ -322,6 +393,11 @@ export default function initDraw(
       ctx.save();
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
+      // Set preview stroke style/width from current settings.
+      ctx.strokeStyle = strokeColorRef.current;
+      ctx.lineWidth = strokeWidthRef.current;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
 
       if (modeRef.current === "rect") {
         ctx.strokeRect(startX, startY, currentX - startX, currentY - startY);
@@ -360,11 +436,10 @@ export default function initDraw(
     }
   });
 
-  // Mouseup: finalize drawing, freehand drawing, erasing, or end panning.
+  // Mouseup: finalize drawing.
   canvas.addEventListener("mouseup", (e) => {
     if (e.button === 0 && isErasing) {
       isErasing = false;
-      // Save the eraser stroke as a shape.
       existingShape.push({
         type: "eraser",
         points: eraserPoints,
@@ -380,6 +455,8 @@ export default function initDraw(
       existingShape.push({
         type: "freehand",
         points: freehandPoints,
+        strokeColor: strokeColorRef.current,
+        strokeWidth: strokeWidthRef.current,
       });
       renderAll();
       return;
@@ -389,7 +466,6 @@ export default function initDraw(
       isDrawing = false;
       const endX = (e.clientX - offsetX) / scale;
       const endY = (e.clientY - offsetY) / scale;
-
       if (modeRef.current === "rect") {
         existingShape.push({
           type: "rectangle",
@@ -397,6 +473,8 @@ export default function initDraw(
           y: startY,
           width: endX - startX,
           height: endY - startY,
+          strokeColor: strokeColorRef.current,
+          strokeWidth: strokeWidthRef.current,
         });
       } else if (modeRef.current === "circle") {
         const centerX = (startX + endX) / 2;
@@ -407,6 +485,8 @@ export default function initDraw(
           y: centerY,
           radiusX: Math.abs(endX - startX) / 2,
           radiusY: Math.abs(endY - startY) / 2,
+          strokeColor: strokeColorRef.current,
+          strokeWidth: strokeWidthRef.current,
         });
       } else if (modeRef.current === "line") {
         existingShape.push({
@@ -415,6 +495,8 @@ export default function initDraw(
           y1: startY,
           x2: endX,
           y2: endY,
+          strokeColor: strokeColorRef.current,
+          strokeWidth: strokeWidthRef.current,
         });
       } else if (modeRef.current === "triangle") {
         const dx = endX - startX;
@@ -431,6 +513,8 @@ export default function initDraw(
           y2: endY,
           x3: thirdX,
           y3: thirdY,
+          strokeColor: strokeColorRef.current,
+          strokeWidth: strokeWidthRef.current,
         });
       } else if (modeRef.current === "arrow") {
         existingShape.push({
@@ -439,6 +523,8 @@ export default function initDraw(
           y1: startY,
           x2: endX,
           y2: endY,
+          strokeColor: strokeColorRef.current,
+          strokeWidth: strokeWidthRef.current,
         });
       }
       renderAll();
@@ -454,17 +540,13 @@ export default function initDraw(
     let newScale = scale - e.deltaY * zoomIntensity;
     const minScale = 0.4;
     const maxScale = 1;
-
     newScale = Math.max(newScale, minScale);
     newScale = Math.min(newScale, maxScale);
-
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-
     const worldX = (mouseX - offsetX) / scale;
     const worldY = (mouseY - offsetY) / scale;
-
     offsetX = mouseX - worldX * newScale;
     offsetY = mouseY - worldY * newScale;
     scale = newScale;
