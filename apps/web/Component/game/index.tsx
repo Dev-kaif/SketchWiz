@@ -126,13 +126,15 @@ export default function initDraw(
       ctx.lineCap = "round";
       // A slight shadow simulates a brush/ink effect.
       ctx.shadowBlur = 2;
-      ctx.shadowColor = shape.strokeColor || "#000";
+      
 
       if (shape.type === "rectangle") {
+        ctx.shadowColor = shape.strokeColor || "#000";
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
       } else if (shape.type === "circle") {
+        ctx.shadowColor = shape.strokeColor || "#000";
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
@@ -147,6 +149,7 @@ export default function initDraw(
         );
         ctx.stroke();
       } else if (shape.type === "line") {
+        ctx.shadowColor = shape.strokeColor || "#000";
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
@@ -154,6 +157,7 @@ export default function initDraw(
         ctx.lineTo(shape.x2, shape.y2);
         ctx.stroke();
       } else if (shape.type === "triangle") {
+        ctx.shadowColor = shape.strokeColor || "#000";
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
@@ -163,6 +167,7 @@ export default function initDraw(
         ctx.closePath();
         ctx.stroke();
       } else if (shape.type === "freehand") {
+        ctx.shadowColor = shape.strokeColor || "#000";
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
@@ -192,6 +197,7 @@ export default function initDraw(
         });
         ctx.stroke();
       } else if (shape.type === "arrow") {
+        ctx.shadowColor = shape.strokeColor || "#000";
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         // Draw the main line.
@@ -371,6 +377,7 @@ export default function initDraw(
       ctx.save();
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
+      ctx.shadowColor = strokeColorRef.current || "#000";
       ctx.strokeStyle = strokeColorRef.current;
       ctx.lineWidth = strokeWidthRef.current;
       ctx.lineJoin = "round";
@@ -394,6 +401,7 @@ export default function initDraw(
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
       // Set preview stroke style/width from current settings.
+      ctx.shadowColor = strokeColorRef.current || "#000";
       ctx.strokeStyle = strokeColorRef.current;
       ctx.lineWidth = strokeWidthRef.current;
       ctx.lineJoin = "round";
