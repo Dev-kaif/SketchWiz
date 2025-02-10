@@ -12,6 +12,7 @@ type DrawingMode =
   | "freehand"
   | "text"
   | "eraser"
+  | "arrow"
   | null;
 
 const Page = () => {
@@ -22,7 +23,7 @@ const Page = () => {
   const [dimensions, setDimensions] = useState<{width: number;height: number;} | null>(null);
 
   // Define the eraser size (in pixels)
-  const eraserSize = 20;
+  const eraserSize = 30;
 
   // Handle window resize and set canvas dimensions.
   useEffect(() => {
@@ -98,6 +99,7 @@ const Page = () => {
           "rect",
           "circle",
           "line",
+          "arrow",
           "triangle",
           "freehand",
           "text",

@@ -13,7 +13,8 @@ type Shape =
     }
   | { type: "freehand"; points: { x: number; y: number }[] }
   | { type: "text"; x: number; y: number; content: string }
-  | { type: "eraser"; points: { x: number; y: number }[]; size: number };
+  | { type: "eraser"; points: { x: number; y: number }[]; size: number }
+  | { type: "arrow"; x1: number; y1: number; x2: number; y2: number };
 
 // Global array to store drawn shapes.
 const existingShape: Shape[] = [];
@@ -21,7 +22,7 @@ const existingShape: Shape[] = [];
 export default function initDraw(
   canvas: HTMLCanvasElement,
   modeRef: React.RefObject<
-    "rect" | "circle" | "line" | "triangle" | "freehand" | "text" | "eraser" | null
+    "rect" | "circle" | "line" | "triangle" | "freehand" | "text" | "eraser" | "arrow" | null
   >
 ) {
   const ctx = canvas.getContext("2d");
@@ -47,7 +48,7 @@ export default function initDraw(
 
   let freehandPoints: { x: number; y: number }[] = [];
   let eraserPoints: { x: number; y: number }[] = [];
-  const eraserSize = 20; // Default eraser size
+  const eraserSize = 30; // Default eraser size
 
   // A helper function to render all shapes using the current transform.
   function renderAll() {
@@ -115,7 +116,33 @@ export default function initDraw(
         });
         ctx.stroke();
         ctx.restore();
+      } else if (shape.type === "arrow") {
+        // Draw the main line.
+        ctx.beginPath();
+        ctx.moveTo(shape.x1, shape.y1);
+        ctx.lineTo(shape.x2, shape.y2);
+        ctx.stroke();
+      
+        // Set fill style for the arrowhead.
+        ctx.fillStyle = "#ffffff";  // Ensure the arrowhead is white.
+      
+        // Draw the arrowhead.
+        const headLength = 10;
+        const angle = Math.atan2(shape.y2 - shape.y1, shape.x2 - shape.x1);
+        ctx.beginPath();
+        ctx.moveTo(shape.x2, shape.y2);
+        ctx.lineTo(
+          shape.x2 - headLength * Math.cos(angle - Math.PI / 6),
+          shape.y2 - headLength * Math.sin(angle - Math.PI / 6)
+        );
+        ctx.lineTo(
+          shape.x2 - headLength * Math.cos(angle + Math.PI / 6),
+          shape.y2 - headLength * Math.sin(angle + Math.PI / 6)
+        );
+        ctx.closePath();
+        ctx.fill();
       }
+      
     });
     ctx.restore();
   }
@@ -258,14 +285,12 @@ export default function initDraw(
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
       ctx.beginPath();
-        ctx.moveTo(eraserPoints[0]?.x || 0, eraserPoints[0]?.y || 0);
-        
-        eraserPoints.forEach((pt, idx) => {
-          if (idx === 0) return;
-          ctx.lineTo(pt.x, pt.y);
-        });
-        ctx.stroke();
-      
+      ctx.moveTo(eraserPoints[0]?.x || 0, eraserPoints[0]?.y || 0);
+      eraserPoints.forEach((pt, idx) => {
+        if (idx === 0) return;
+        ctx.lineTo(pt.x, pt.y);
+      });
+      ctx.stroke();
       ctx.restore();
       return;
     }
@@ -280,13 +305,12 @@ export default function initDraw(
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
       ctx.beginPath();
-        ctx.moveTo(freehandPoints[0]?.x||0, freehandPoints[0]?.y||0);
-        freehandPoints.forEach((point, index) => {
-          if (index === 0) return;
-          ctx.lineTo(point.x, point.y);
-        });
-        ctx.stroke();
-      
+      ctx.moveTo(freehandPoints[0]?.x || 0, freehandPoints[0]?.y || 0);
+      freehandPoints.forEach((point, index) => {
+        if (index === 0) return;
+        ctx.lineTo(point.x, point.y);
+      });
+      ctx.stroke();
       ctx.restore();
       return;
     }
@@ -309,7 +333,7 @@ export default function initDraw(
         ctx.beginPath();
         ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
         ctx.stroke();
-      } else if (modeRef.current === "line") {
+      } else if (modeRef.current === "line" || modeRef.current === "arrow") {
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.lineTo(currentX, currentY);
@@ -407,6 +431,14 @@ export default function initDraw(
           y2: endY,
           x3: thirdX,
           y3: thirdY,
+        });
+      } else if (modeRef.current === "arrow") {
+        existingShape.push({
+          type: "arrow",
+          x1: startX,
+          y1: startY,
+          x2: endX,
+          y2: endY,
         });
       }
       renderAll();
