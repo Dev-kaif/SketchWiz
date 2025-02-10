@@ -53,7 +53,7 @@ const Page = () => {
   const [showSettings, setShowSettings] = useState(false);
 
   // Define the eraser size (in pixels)
-  const eraserSize = 30;
+  const eraserSize = strokeWidth * 10;
 
   // Handle window resize and set canvas dimensions.
   useEffect(() => {
@@ -79,7 +79,7 @@ const Page = () => {
       // Pass stroke settings refs into initDraw so drawing uses the current settings.
       initDraw(canvas, modeRef, strokeColorRef, strokeWidthRef);
     }
-  }, [dimensions]);
+  }, [dimensions,eraserSize]);
 
   // Update the eraser cursor position.
   useEffect(() => {
@@ -130,6 +130,7 @@ const Page = () => {
               className="w-full"
             />
           </div>
+          {!(mode == "eraser") && <div>
           <div className="mb-4">
             <label htmlFor="strokeColor" className="block text-sm mb-1">
               Choose Color:
@@ -157,6 +158,7 @@ const Page = () => {
               ))}
             </div>
           </div>
+          </div>}
         </div>
       )}
 
@@ -197,12 +199,7 @@ const Page = () => {
           <button
             key={shapeObj.name}
             onClick={() => {
-              if((shapeObj.name == "eraser")){
-                setShowSettings(false)
-              }else{
-                setShowSettings(true)
-
-              }
+              setShowSettings(true)
               setMode(shapeObj.name as DrawingMode)}}
             className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors duration-200 
               ${

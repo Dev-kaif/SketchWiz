@@ -105,7 +105,7 @@ export default function initDraw(
 
   let freehandPoints: { x: number; y: number }[] = [];
   let eraserPoints: { x: number; y: number }[] = [];
-  const eraserSize = 30; // Default eraser size
+  const eraserSize = strokeWidthRef.current * 10; // Default eraser size
 
   // A helper function to render all shapes using the current transform.
   function renderAll() {
@@ -126,15 +126,16 @@ export default function initDraw(
       ctx.lineCap = "round";
       // A slight shadow simulates a brush/ink effect.
       ctx.shadowBlur = 2;
+      ctx.shadowColor = strokeColorRef.current;
       
 
       if (shape.type === "rectangle") {
-        ctx.shadowColor = shape.strokeColor || "#000";
+        ctx.shadowColor = shape.strokeColor ;
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
       } else if (shape.type === "circle") {
-        ctx.shadowColor = shape.strokeColor || "#000";
+        ctx.shadowColor = shape.strokeColor ;
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
@@ -149,7 +150,7 @@ export default function initDraw(
         );
         ctx.stroke();
       } else if (shape.type === "line") {
-        ctx.shadowColor = shape.strokeColor || "#000";
+        ctx.shadowColor = shape.strokeColor ;
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
@@ -157,7 +158,7 @@ export default function initDraw(
         ctx.lineTo(shape.x2, shape.y2);
         ctx.stroke();
       } else if (shape.type === "triangle") {
-        ctx.shadowColor = shape.strokeColor || "#000";
+        ctx.shadowColor = shape.strokeColor ;
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
@@ -167,7 +168,7 @@ export default function initDraw(
         ctx.closePath();
         ctx.stroke();
       } else if (shape.type === "freehand") {
-        ctx.shadowColor = shape.strokeColor || "#000";
+        ctx.shadowColor = shape.strokeColor ;
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
@@ -197,7 +198,7 @@ export default function initDraw(
         });
         ctx.stroke();
       } else if (shape.type === "arrow") {
-        ctx.shadowColor = shape.strokeColor || "#000";
+        ctx.shadowColor = shape.strokeColor ;
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         // Draw the main line.
@@ -377,7 +378,7 @@ export default function initDraw(
       ctx.save();
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
-      ctx.shadowColor = strokeColorRef.current || "#000";
+      ctx.shadowColor = strokeColorRef.current ;
       ctx.strokeStyle = strokeColorRef.current;
       ctx.lineWidth = strokeWidthRef.current;
       ctx.lineJoin = "round";
@@ -401,7 +402,7 @@ export default function initDraw(
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
       // Set preview stroke style/width from current settings.
-      ctx.shadowColor = strokeColorRef.current || "#000";
+      ctx.shadowColor = strokeColorRef.current ;
       ctx.strokeStyle = strokeColorRef.current;
       ctx.lineWidth = strokeWidthRef.current;
       ctx.lineJoin = "round";
