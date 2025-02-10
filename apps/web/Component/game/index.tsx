@@ -126,7 +126,7 @@ export default function initDraw(
       ctx.lineCap = "round";
       // A slight shadow simulates a brush/ink effect.
       ctx.shadowBlur = 2;
-      ctx.shadowColor = strokeColorRef.current;
+      // ctx.shadowColor = strokeColorRef.current;
       
 
       if (shape.type === "rectangle") {
