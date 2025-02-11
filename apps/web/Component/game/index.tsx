@@ -1,3 +1,6 @@
+import axios from "../axios/index";
+import { BACKEND_URL } from "../Config";
+
 type Shape =
   | {
       type: "rectangle";
@@ -68,7 +71,7 @@ type Shape =
 // Global array to store drawn shapes.
 const existingShape: Shape[] = [];
 
-export default function initDraw(
+export default async function initDraw(
   canvas: HTMLCanvasElement,
   modeRef: React.RefObject<
     | "rect"
@@ -82,60 +85,77 @@ export default function initDraw(
     | null
   >,
   strokeColorRef: React.RefObject<string>,
-  strokeWidthRef: React.RefObject<number>
+  strokeWidthRef: React.RefObject<number>,
+  socket: WebSocket,
+  params: { slug: string }
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
+  // Get previous shapes and roomId.
+  async function getPreviousShapes() {
+    const slug = (await params).slug;
+    const roomIdRes = await axios.get(`${BACKEND_URL}/api/room/slug/${slug}`);
+    const roomId = roomIdRes.data.room.id;
 
-  // Current transformation (world) parameters.
-  let offsetX = 0;
-  let offsetY = 0;
-  let scale = 1;
+    socket.send(JSON.stringify({ type: "join_room", roomId: roomId }));
+    const res = await axios.get(`${BACKEND_URL}/api/room/${roomId}`);
 
-  // State flags and starting coordinates.
-  let isDrawing = false;
-  let isPanning = false;
-  let isFreehandDrawing = false;
-  let isErasing = false;
+    return { messages: res.data.messages, roomId };
+  }
 
-  let startX = 0;
-  let startY = 0;
-  let panStartX = 0;
-  let panStartY = 0;
+  const { messages, roomId } = await getPreviousShapes();
 
-  let freehandPoints: { x: number; y: number }[] = [];
-  let eraserPoints: { x: number; y: number }[] = [];
-  const eraserSize = strokeWidthRef.current * 10; // Default eraser size
+  async function addShapes() {
+    if (messages.length === 0) return;
+    messages.map((msg: { id: number; message: string }) => {
+      existingShape.push(JSON.parse(msg.message));
+    });
+  }
+  await addShapes();
 
-  // A helper function to render all shapes using the current transform.
+  socket.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.type === "chat" && data.message) {
+        existingShape.push(data.message);
+        renderAll();
+      }
+    } catch (error) {
+      console.error("Error processing incoming socket message:", error);
+    }
+  };
+
+  // Helper to send a shape over the WebSocket.
+  function sendShapeMessage(shape: Shape) {
+    const message = {
+      type: "chat",
+      roomId: roomId,
+      message: shape,
+    };
+    socket.send(JSON.stringify(message));
+  }
+
+  // Helper to render all shapes.
   function renderAll() {
     if (!ctx) return;
-    // Clear the entire canvas.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
-
-    // Apply pan and zoom.
     ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
 
-    // Render each saved shape.
     existingShape.forEach((shape) => {
-      // For a more hand-drawn "ink" effect, we set common properties:
       ctx.save();
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
-      // A slight shadow simulates a brush/ink effect.
       ctx.shadowBlur = 2;
-      // ctx.shadowColor = strokeColorRef.current;
-      
 
       if (shape.type === "rectangle") {
-        ctx.shadowColor = shape.strokeColor ;
+        ctx.shadowColor = shape.strokeColor;
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
       } else if (shape.type === "circle") {
-        ctx.shadowColor = shape.strokeColor ;
+        ctx.shadowColor = shape.strokeColor;
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
@@ -150,7 +170,7 @@ export default function initDraw(
         );
         ctx.stroke();
       } else if (shape.type === "line") {
-        ctx.shadowColor = shape.strokeColor ;
+        ctx.shadowColor = shape.strokeColor;
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
@@ -158,7 +178,7 @@ export default function initDraw(
         ctx.lineTo(shape.x2, shape.y2);
         ctx.stroke();
       } else if (shape.type === "triangle") {
-        ctx.shadowColor = shape.strokeColor ;
+        ctx.shadowColor = shape.strokeColor;
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
@@ -168,7 +188,7 @@ export default function initDraw(
         ctx.closePath();
         ctx.stroke();
       } else if (shape.type === "freehand") {
-        ctx.shadowColor = shape.strokeColor ;
+        ctx.shadowColor = shape.strokeColor;
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
         ctx.beginPath();
@@ -179,12 +199,11 @@ export default function initDraw(
         });
         ctx.stroke();
       } else if (shape.type === "text") {
-        // For text, you might want a sharper rendering; adjust shadow as needed.
         ctx.font = "1.5vw Arial";
         ctx.fillStyle = shape.strokeColor;
         ctx.fillText(shape.content, shape.x, shape.y);
       } else if (shape.type === "eraser") {
-        ctx.restore(); // Remove the brush settings for eraser.
+        ctx.restore();
         ctx.save();
         ctx.globalCompositeOperation = "destination-out";
         ctx.lineWidth = shape.size;
@@ -198,21 +217,17 @@ export default function initDraw(
         });
         ctx.stroke();
       } else if (shape.type === "arrow") {
-        ctx.shadowColor = shape.strokeColor ;
+        ctx.shadowColor = shape.strokeColor;
         ctx.strokeStyle = shape.strokeColor;
         ctx.lineWidth = shape.strokeWidth;
-        // Draw the main line.
         ctx.beginPath();
         ctx.moveTo(shape.x1, shape.y1);
         ctx.lineTo(shape.x2, shape.y2);
         ctx.stroke();
-
-        // Improve arrowhead: adjust its size based on strokeWidth and add smoother proportions.
         const dx = shape.x2 - shape.x1;
         const dy = shape.y2 - shape.y1;
         const angle = Math.atan2(dy, dx);
         const headLength = Math.max(10, shape.strokeWidth * 5);
-        // For a sharper arrowhead, using a smaller angle (e.g., π/7)
         ctx.beginPath();
         ctx.moveTo(shape.x2, shape.y2);
         ctx.lineTo(
@@ -232,17 +247,33 @@ export default function initDraw(
     ctx.restore();
   }
 
+  // Transformation parameters.
+  let offsetX = 0;
+  let offsetY = 0;
+  let scale = 1;
+
+  // Flags and coordinates.
+  let isDrawing = false;
+  let isPanning = false;
+  let isFreehandDrawing = false;
+  let isErasing = false;
+  let startX = 0;
+  let startY = 0;
+  let panStartX = 0;
+  let panStartY = 0;
+  let freehandPoints: { x: number; y: number }[] = [];
+  let eraserPoints: { x: number; y: number }[] = [];
+  const eraserSize = strokeWidthRef.current * 10;
+
   // Text input handling.
   canvas.addEventListener("dblclick", (e: MouseEvent) => {
     if (modeRef.current !== "text") return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
     const textX = (e.clientX - offsetX) / scale;
     const textY = (e.clientY - offsetY) / scale;
     let currentText = "";
     let showCursor = true;
-
     function drawTextPreview() {
       renderAll();
       if (!ctx) return;
@@ -255,7 +286,6 @@ export default function initDraw(
       ctx.fillText(displayText, textX, textY);
       ctx.restore();
     }
-
     function handleKeydown(event: KeyboardEvent) {
       if (event.key === "Enter") {
         saveText();
@@ -267,7 +297,6 @@ export default function initDraw(
         drawTextPreview();
       }
     }
-
     function handleOutsideClick(event: MouseEvent) {
       if (event.target !== canvas) return;
       if (currentText.trim().length > 0) {
@@ -276,27 +305,26 @@ export default function initDraw(
         cleanup();
       }
     }
-
     function saveText() {
       if (currentText.trim().length > 0) {
-        existingShape.push({
+        const newShape: Shape = {
           type: "text",
           x: textX,
           y: textY,
           content: currentText,
           strokeColor: strokeColorRef.current,
-        });
+        };
+        existingShape.push(newShape);
+        sendShapeMessage(newShape);
       }
       cleanup();
     }
-
     function cleanup() {
       clearInterval(cursorInterval);
       document.removeEventListener("keydown", handleKeydown);
       document.removeEventListener("mousedown", handleOutsideClick);
       renderAll();
     }
-
     drawTextPreview();
     const cursorInterval = setInterval(() => {
       showCursor = !showCursor;
@@ -306,11 +334,10 @@ export default function initDraw(
     document.addEventListener("mousedown", handleOutsideClick);
   });
 
-  // Prevent default context menu for panning.
+  // Prevent default context menu.
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  // Mousedown: differentiate between drawing (left button), panning (right button),
-  // freehand drawing, and erasing.
+  // Mousedown event.
   canvas.addEventListener("mousedown", (e) => {
     if (e.button === 2) {
       isPanning = true;
@@ -318,7 +345,6 @@ export default function initDraw(
       panStartY = e.clientY - offsetY;
       return;
     }
-
     if (modeRef.current === "freehand" || modeRef.current === "eraser") {
       if (modeRef.current === "eraser") {
         isErasing = true;
@@ -347,7 +373,7 @@ export default function initDraw(
     startY = (e.clientY - offsetY) / scale;
   });
 
-  // Mousemove: update drawing preview.
+  // Mousemove event.
   canvas.addEventListener("mousemove", (e) => {
     if (isErasing) {
       const newX = (e.clientX - offsetX) / scale;
@@ -369,7 +395,6 @@ export default function initDraw(
       ctx.restore();
       return;
     }
-
     if (isFreehandDrawing) {
       const newX = (e.clientX - offsetX) / scale;
       const newY = (e.clientY - offsetY) / scale;
@@ -378,7 +403,7 @@ export default function initDraw(
       ctx.save();
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
-      ctx.shadowColor = strokeColorRef.current ;
+      ctx.shadowColor = strokeColorRef.current;
       ctx.strokeStyle = strokeColorRef.current;
       ctx.lineWidth = strokeWidthRef.current;
       ctx.lineJoin = "round";
@@ -393,7 +418,6 @@ export default function initDraw(
       ctx.restore();
       return;
     }
-
     if (isDrawing) {
       const currentX = (e.clientX - offsetX) / scale;
       const currentY = (e.clientY - offsetY) / scale;
@@ -401,13 +425,11 @@ export default function initDraw(
       ctx.save();
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
-      // Set preview stroke style/width from current settings.
-      ctx.shadowColor = strokeColorRef.current ;
+      ctx.shadowColor = strokeColorRef.current;
       ctx.strokeStyle = strokeColorRef.current;
       ctx.lineWidth = strokeWidthRef.current;
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
-
       if (modeRef.current === "rect") {
         ctx.strokeRect(startX, startY, currentX - startX, currentY - startY);
       } else if (modeRef.current === "circle") {
@@ -445,38 +467,41 @@ export default function initDraw(
     }
   });
 
-  // Mouseup: finalize drawing.
+  // Mouseup event.
   canvas.addEventListener("mouseup", (e) => {
     if (e.button === 0 && isErasing) {
       isErasing = false;
-      existingShape.push({
+      const newShape: Shape = {
         type: "eraser",
         points: eraserPoints,
         size: eraserSize,
-      });
-      eraserPoints = [];
+      };
+      existingShape.push(newShape);
       renderAll();
+      sendShapeMessage(newShape);
+      eraserPoints = [];
       return;
     }
-
     if (e.button === 0 && isFreehandDrawing) {
       isFreehandDrawing = false;
-      existingShape.push({
+      const newShape: Shape = {
         type: "freehand",
         points: freehandPoints,
         strokeColor: strokeColorRef.current,
         strokeWidth: strokeWidthRef.current,
-      });
+      };
+      existingShape.push(newShape);
       renderAll();
+      sendShapeMessage(newShape);
       return;
     }
-
     if (e.button === 0 && isDrawing) {
       isDrawing = false;
       const endX = (e.clientX - offsetX) / scale;
       const endY = (e.clientY - offsetY) / scale;
+      let newShape: Shape | null = null;
       if (modeRef.current === "rect") {
-        existingShape.push({
+        newShape = {
           type: "rectangle",
           x: startX,
           y: startY,
@@ -484,11 +509,11 @@ export default function initDraw(
           height: endY - startY,
           strokeColor: strokeColorRef.current,
           strokeWidth: strokeWidthRef.current,
-        });
+        };
       } else if (modeRef.current === "circle") {
         const centerX = (startX + endX) / 2;
         const centerY = (startY + endY) / 2;
-        existingShape.push({
+        newShape = {
           type: "circle",
           x: centerX,
           y: centerY,
@@ -496,9 +521,9 @@ export default function initDraw(
           radiusY: Math.abs(endY - startY) / 2,
           strokeColor: strokeColorRef.current,
           strokeWidth: strokeWidthRef.current,
-        });
+        };
       } else if (modeRef.current === "line") {
-        existingShape.push({
+        newShape = {
           type: "line",
           x1: startX,
           y1: startY,
@@ -506,7 +531,7 @@ export default function initDraw(
           y2: endY,
           strokeColor: strokeColorRef.current,
           strokeWidth: strokeWidthRef.current,
-        });
+        };
       } else if (modeRef.current === "triangle") {
         const dx = endX - startX;
         const dy = endY - startY;
@@ -514,7 +539,7 @@ export default function initDraw(
         const midY = (startY + endY) / 2;
         const thirdX = midX - dy * (Math.sqrt(3) / 2);
         const thirdY = midY - dx * (Math.sqrt(3) / 2);
-        existingShape.push({
+        newShape = {
           type: "triangle",
           x1: startX,
           y1: startY,
@@ -524,9 +549,9 @@ export default function initDraw(
           y3: thirdY,
           strokeColor: strokeColorRef.current,
           strokeWidth: strokeWidthRef.current,
-        });
+        };
       } else if (modeRef.current === "arrow") {
-        existingShape.push({
+        newShape = {
           type: "arrow",
           x1: startX,
           y1: startY,
@@ -534,15 +559,19 @@ export default function initDraw(
           y2: endY,
           strokeColor: strokeColorRef.current,
           strokeWidth: strokeWidthRef.current,
-        });
+        };
       }
-      renderAll();
+      if (newShape) {
+        existingShape.push(newShape);
+        renderAll();
+        sendShapeMessage(newShape);
+      }
     } else if (e.button === 2 && isPanning) {
       isPanning = false;
     }
   });
 
-  // Wheel event for zooming in/out.
+  // Wheel event for zooming.
   canvas.addEventListener("wheel", (e) => {
     e.preventDefault();
     const zoomIntensity = 0.001;
