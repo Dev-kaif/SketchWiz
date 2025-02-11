@@ -41,7 +41,7 @@ function Login({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {
 
   return (
     <>
-    <div className="flex flex-col gap-3 mb-5">
+    <div className="flex flex-col gap-3 mb-5 text-white">
       <div className="text-4xl font-bold ">Welcome Back,</div>
     </div>
     <div className="flex flex-col gap-5 w-full">
@@ -62,7 +62,7 @@ function Login({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {
           {processing? "Logging in......":"Log In"}
         </Button>
       </div>
-      <div className="flex gap-1  items-center justify-center">
+      <div className="flex gap-1  items-center justify-center text-white">
         <div>Don&apos;t have an account?</div>
           <button
           className='text-blue-300'
