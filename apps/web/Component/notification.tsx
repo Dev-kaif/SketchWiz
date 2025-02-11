@@ -67,7 +67,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   return (
     <NotificationContext.Provider value={{ addNotification }}>
       {children}
-      <div className="fixed top-5 right-5 space-y-2 w-80">
+      <div className="fixed z-50 top-5 right-5 space-y-2 w-80">
         {notifications.map((notif) => (
           <Notification key={notif.id} type={notif.type} message={notif.message} onClose={() => removeNotification(notif.id)} />
         ))}
