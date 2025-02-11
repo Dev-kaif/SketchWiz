@@ -145,7 +145,7 @@ app.post("/api/room", auth, async (req: Request, res: Response) => {
   } catch (error) {
       console.error("Signin error:", error);
       res.status(403).json({
-        message: "User ALready exist"
+        message: "Room ALready exist"
       });
       return;
   }
@@ -216,6 +216,55 @@ app.get("/api/room/slug/:slug",auth,async (req:Request,res:Response)=>{
     }
   }
 })
+
+//delete room with its content
+app.delete("/api/room/delete/:roomId", auth, async (req: Request, res: Response) => {
+  const roomId = Number(req.params.roomId);
+
+  try {
+    // Use a transaction to delete the room's content first,
+    // then delete the room itself.
+    const response = await client.$transaction([
+      client.chat.deleteMany({
+        where: { roomId },
+      }),
+      client.room.delete({
+        where: { id: roomId },
+      }),
+    ]);
+
+    res.status(200).json({ 
+      message: `Room ${response[1].slug} and data associated content items deleted successfully.`,
+      room: response[1]
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "An unexpected error occurred" });
+    }
+  }
+});
+
+//delete canvas content
+app.delete("/api/room/delete/content/:roomId", auth, async (req: Request, res: Response) => {
+  const roomId = Number(req.params.roomId);
+  try {
+    const response = await client.chat.deleteMany({
+      where:{
+        roomId
+      }
+    })
+
+    res.status(200).json({ message: `Content deleted successfully.`,response});
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "An unexpected error occurred" });
+    }
+  }
+});
 
 
 const PORT = 5000;
