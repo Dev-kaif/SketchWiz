@@ -29,7 +29,7 @@ wss.on("connection", (socket, request) => {
 
     if (!token) throw new Error("Token not provided");
 
-    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    const decoded = jwt.verify(token, JWT_SECRET as string) as JwtPayload;
     const userId = decoded.id;
 
     if (!userId) throw new Error("Invalid token");
@@ -61,7 +61,7 @@ wss.on("connection", (socket, request) => {
             await client.chat.create({
               data: {
                 roomId: parsedData.roomId,
-                message: parsedData.message,
+                message: JSON.stringify(parsedData.message),
                 userId: user.userId,
               },
             });
