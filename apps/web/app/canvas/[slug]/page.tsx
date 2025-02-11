@@ -12,8 +12,14 @@ import {
   Triangle,
   TypeOutline,
   Settings as SettingsIcon,
+  Trash,
+  LogOut,
 } from "lucide-react";
 import socket from "../../../Component/socket";
+import axios from 'axios';
+import { BACKEND_URL } from "../../../Component/Config";
+import { useNotification } from "../../../Component/notification";
+import { useRouter } from "next/navigation";
 
 // Define available drawing modes
 type DrawingMode =
@@ -39,7 +45,8 @@ const Page = ({ params }: Param) => {
   const modeRef = useRef<DrawingMode>(null);
   const [mode, setMode] = useState<DrawingMode>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
-
+  const [callDelete ,setCallDelete] = useState(false);
+  const { addNotification } = useNotification();
   // Stroke settings (default: white & 3)
   const [strokeColor, setStrokeColor] = useState("#ffffff");
   const [strokeWidth, setStrokeWidth] = useState(3);
@@ -47,6 +54,7 @@ const Page = ({ params }: Param) => {
   // Refs to hold dynamic stroke settings so they’re used in drawing operations.
   const strokeColorRef = useRef(strokeColor);
   const strokeWidthRef = useRef(strokeWidth);
+  const router = useRouter()
 
   useEffect(() => {
     strokeColorRef.current = strokeColor;
@@ -114,7 +122,7 @@ const Page = ({ params }: Param) => {
         cleanupRef.current = undefined;
       }
     };
-  }, [dimensions, eraserSize, params]);
+  }, [dimensions, eraserSize, params,callDelete]);
 
   // Update the eraser cursor position.
   useEffect(() => {
@@ -136,6 +144,20 @@ const Page = ({ params }: Param) => {
   // Basic color swatches for quick selection.
   const basicColors = ["#ffffff", "#ff4d4d", "#4dff4d", "#4d9fff", "#ffeb3b", "#ff66ff", "#00e5ff"];
 
+  async function deleteAllContent() {
+    try {
+      const slug = (await params).slug;
+      const res = await axios.get(`${BACKEND_URL}/api/room/slug/${slug}`);
+      const roomId = res.data.room.id;
+      const delResponse = await axios.delete(`${BACKEND_URL}/api/room/delete/content/${roomId}`);
+      addNotification("success",delResponse.data.message);
+    } catch (error) {
+      console.log(error);
+    }finally{
+      setCallDelete(prev=>!prev)
+    }
+  }
+
   return (
     <div className="relative">
       {/* Toggle Settings Button */}
@@ -144,6 +166,18 @@ const Page = ({ params }: Param) => {
         className="absolute z-50 top-4 left-4 p-2 rounded-full bg-gray-800 text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
       >
         <SettingsIcon size={24} />
+      </button>
+      <button
+        onClick={() => deleteAllContent()}
+        className="absolute z-50 top-4 right-20 p-2 rounded-full bg-gray-800 text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
+      >
+        <Trash size={24} />
+      </button>
+      <button
+        onClick={() => router.push('/Dashboard')}
+        className="absolute z-50 top-4 right-6 p-2 rounded-full bg-gray-800 text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
+      >
+        <LogOut size={24} />
       </button>
 
       {/* Dynamic Settings Panel */}

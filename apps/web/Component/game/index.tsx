@@ -96,25 +96,6 @@ interface DrawState {
   };
 }
 
-const defaultState: DrawState = {
-  shapes: [],
-  offsetX: 0,
-  offsetY: 0,
-  scale: 1,
-  isDrawing: false,
-  isPanning: false,
-  isFreehandDrawing: false,
-  isErasing: false,
-  startX: 0,
-  startY: 0,
-  panStartX: 0,
-  panStartY: 0,
-  freehandPoints: [],
-  eraserPoints: [],
-  currentX: undefined,
-  currentY: undefined,
-  textPreview: undefined,
-};
 
 // A module-level variable to hold the cleanup function for text input.
 let activeTextCleanup: (() => void) | null = null;
@@ -137,6 +118,27 @@ export default async function initDraw(
   socket: WebSocket,
   params: { slug: string }
 ): Promise<() => void> {
+
+  const defaultState: DrawState = {
+    shapes: [],
+    offsetX: 0,
+    offsetY: 0,
+    scale: 1,
+    isDrawing: false,
+    isPanning: false,
+    isFreehandDrawing: false,
+    isErasing: false,
+    startX: 0,
+    startY: 0,
+    panStartX: 0,
+    panStartY: 0,
+    freehandPoints: [],
+    eraserPoints: [],
+    currentX: undefined,
+    currentY: undefined,
+    textPreview: undefined,
+  };
+
   const ctx = canvas.getContext("2d");
 
   // Consolidate all drawing variables in state.
