@@ -116,11 +116,12 @@ app.post("/api/signin", async (req: Request, res: Response) => {
   }
 });
 
-// Protected Room Endpoint
-app.get("/api/room", auth, async (req: Request, res: Response) => {
+// Protected Room Endpoints
 
+// create new room
+app.post("/api/room", auth, async (req: Request, res: Response) => {
   const parsedData = RoomSchema.safeParse(req.body);
-
+  
   if(!parsedData.success){
     res.json({
       message:"Incorrect Inputs"
@@ -139,30 +140,46 @@ app.get("/api/room", auth, async (req: Request, res: Response) => {
         }
       })
 
-      res.status(200).json({message: "Joined room", roomId:response.id});
+      res.status(200).json({message: "Joined room", room:response});
       return;
   } catch (error) {
       console.error("Signin error:", error);
-      res.status(500).json({
-        message: "Internal server error during signin"
+      res.status(403).json({
+        message: "User ALready exist"
       });
       return;
   }
-
 });
 
+//get all the user's room
+app.get("/api/rooms",auth,async (req: Request, res: Response) => {
+  const userId = Number(req.userId);
+  try {
+    const rooms = await client.room.findMany({
+      where:{
+        adminId:userId
+      }
+    })
+    res.status(200).json({rooms})
+    return;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      res.json({ error: error.message });
+    } else {
+      res.json({ error: "An unexpected error occurred" });
+    }
+  }
 
-app.get("/room/:roomId",auth,async (req:Request,res:Response)=>{
+})
+
+//get previous messages
+app.get("/api/room/:roomId",auth,async (req:Request,res:Response)=>{
   const roomId = Number(req.params.roomId);
   try {
     const messages = await client.chat.findMany({
       where:{
         roomId:roomId
-      },
-      orderBy:{
-        id:"desc"
-      },
-      take:50
+      }
     })
   
     res.status(200).json({messages})
@@ -177,16 +194,17 @@ app.get("/room/:roomId",auth,async (req:Request,res:Response)=>{
   }
 })
 
-app.get("/room/:slug",auth,async (req:Request,res:Response)=>{
-
+// get roomId with the help of slug
+app.get("/api/room/slug/:slug",auth,async (req:Request,res:Response)=>{
+  
   const slug = req.params.slug
+  
   try {
     const room = await client.room.findFirst({
       where:{
         slug
       }
     })
-  
     res.status(200).json({room})
 
     return;
@@ -198,7 +216,6 @@ app.get("/room/:slug",auth,async (req:Request,res:Response)=>{
     }
   }
 })
-
 
 
 const PORT = 5000;
