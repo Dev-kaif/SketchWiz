@@ -32,8 +32,8 @@ function Login({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {
         const jwtToken = res.data.token;
         localStorage.setItem("authorization",jwtToken);
         rounter.push('/Dashboard')
-      } catch (error) {
-        addNotification("error",error.response.data.message)
+      } catch (error:any) {
+        addNotification("error",error.response?.data?.message || "")
         setProcessing(false)
       }
     }
@@ -45,8 +45,9 @@ function Login({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {
       <div className="text-4xl font-bold ">Welcome Back,</div>
     </div>
     <div className="flex flex-col gap-5 w-full">
-      <Input onChangeHandle={(email) => setEmail(email)} place="Email" />
+      <Input size='w-full' onChangeHandle={(email) => setEmail(email)} place="Email" />
       <Input
+        size='w-full'
         type="password"
         onChangeHandle={(password) => setPassword(password)}
         place="Password"
@@ -54,6 +55,7 @@ function Login({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {
       <div>
         <Button
           processing= {processing}
+          size='w-full'
           onClickHandler={() => {
             handleLogin()
           }}
@@ -65,7 +67,7 @@ function Login({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {
       <div className="flex gap-1  items-center justify-center text-white">
         <div>Don&apos;t have an account?</div>
           <button
-          className='text-blue-300'
+          className='text-[#89e5f5] font-bold'
           onClick={()=>{
             isLoginTrue(false)
           }}>Sign Up Now</button>

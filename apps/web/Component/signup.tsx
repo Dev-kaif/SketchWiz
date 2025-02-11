@@ -44,8 +44,8 @@ function Signup({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {
         addNotification("success",res.data.message)
         setProcessing(false)
         isLoginTrue(true)
-      } catch (error) {
-        addNotification("error",error.response.data.message)
+      } catch (error:any) {
+        addNotification("error",error.response?.data?.message)
         setProcessing(false)
       }
     }
@@ -70,27 +70,28 @@ function Signup({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {
           />
         </div>
         <div className="w-full">
-          <Input
+          <Input size='w-full'
             onChangeHandle={(src) => setSource(src.trim())} 
             place="photo link (optional)"
           />
         </div>
       </div>
       <div className="flex gap-5">
-        <Input onChangeHandle={(name) => setName(name)} place="Name" />
-        <Input
+        <Input size='w-full' onChangeHandle={(name) => setName(name)} place="Name" />
+        <Input size='w-full'
           onChangeHandle={(username) => setUserName(username)}
           place="Username"
         />
       </div>
-      <Input onChangeHandle={(email) => setEmail(email)} place="Email" />
-      <Input
+      <Input size='w-full' onChangeHandle={(email) => setEmail(email)} place="Email" />
+      <Input size='w-full'
         type="password"
         onChangeHandle={(password) => setPassword(password)}
         place="Password"
       />
       <div>
         <Button
+          size='w-full'
           processing= {processing}
           onClickHandler={() => {
            handleSignUp()
@@ -103,7 +104,7 @@ function Signup({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {
 
       <div className="flex gap-1 items-center justify-center">
         <div>Already have an account?</div>
-          <button className='text-blue-300' onClick={()=>{
+          <button className='text-[#89e5f5] font-bold' onClick={()=>{
             isLoginTrue(true)
           }}>Login</button>
       </div>

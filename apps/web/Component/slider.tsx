@@ -7,7 +7,7 @@ import "swiper/css";
 import "swiper/css/autoplay";
 import "swiper/css/pagination";
 import { Button } from '../../../packages/ui/src/button';
-import {CornerUpLeft, MousePointer2 } from "lucide-react";
+import {CornerUpLeft} from "lucide-react";
 import { useRouter } from "next/navigation";
 
 function Slider() {
@@ -52,8 +52,7 @@ function Slider() {
           />
         </SwiperSlide>
         
-        <div className="absolute top-2 z-10 right-0 flex justify-between items-center w-full px-3">
-        <MousePointer2 className="w-14 h-14 text-blue-500 fill-blue-500"/>
+        <div className="absolute top-2 z-10 right-0 flex px-3">
           <Button size="text-sm" onClickHandler={()=>{
             router.push('/')
           }} className="secondary">
