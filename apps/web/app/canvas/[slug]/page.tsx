@@ -33,7 +33,7 @@ interface Param {
   };
 }
 
-const Page = ({params}:Param) => {
+const Page = ({ params }: Param) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const eraserCursorRef = useRef<HTMLDivElement>(null);
   const modeRef = useRef<DrawingMode>(null);
@@ -62,7 +62,6 @@ const Page = ({params}:Param) => {
   // Define the eraser size (in pixels)
   const eraserSize = strokeWidth * 10;
 
-
   // Handle window resize and set canvas dimensions.
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -80,17 +79,42 @@ const Page = ({params}:Param) => {
     modeRef.current = mode;
   }, [mode]);
 
-  // Initialize canvas when dimensions are available.
+  // Use a ref to store the cleanup function returned by initDraw.
+  const cleanupRef = useRef<(() => void) | undefined>(undefined);
+
+  // Initialize canvas (and attach event listeners) when dimensions are available.
   useEffect(() => {
-
     const canvas = canvasRef.current;
+    let cancelled = false;
     if (canvas && dimensions) {
-      // Pass stroke settings refs into initDraw so drawing uses the current settings.
-      initDraw(canvas, modeRef, strokeColorRef, strokeWidthRef,socket,params);
+      (async () => {
+        // Await initDraw and get its cleanup function.
+        const cleanup = await initDraw(
+          canvas,
+          modeRef,
+          strokeColorRef,
+          strokeWidthRef,
+          socket,
+          params // pass params directly
+        );
+        if (!cancelled) {
+          cleanupRef.current = cleanup;
+        } else {
+          // If the effect has already been cleaned up, run cleanup immediately.
+          cleanup();
+        }
+      })();
     }
-
+    return () => {
+      cancelled = true;
+      // When the effect cleans up, run the stored cleanup function.
+      if (cleanupRef.current) {
+        console.log("Cleaning up initDraw event listeners");
+        cleanupRef.current();
+        cleanupRef.current = undefined;
+      }
+    };
   }, [dimensions, eraserSize, params]);
-
 
   // Update the eraser cursor position.
   useEffect(() => {
@@ -111,7 +135,6 @@ const Page = ({params}:Param) => {
 
   // Basic color swatches for quick selection.
   const basicColors = ["#ffffff", "#ff4d4d", "#4dff4d", "#4d9fff", "#ffeb3b", "#ff66ff", "#00e5ff"];
-  
 
   return (
     <div className="relative">
@@ -141,35 +164,37 @@ const Page = ({params}:Param) => {
               className="w-full"
             />
           </div>
-          {!(mode == "eraser") && <div>
-          <div className="mb-4">
-            <label htmlFor="strokeColor" className="block text-sm mb-1">
-              Choose Color:
-            </label>
-            <input
-              type="color"
-              id="strokeColor"
-              value={strokeColor}
-              onChange={(e) => setStrokeColor(e.target.value)}
-              className="w-full h-10 p-0 border-none bg-gray-700"
-            />
-          </div>
-          <div>
-            <p className="text-sm mb-1">Basic Colors:</p>
-            <div className="flex space-x-2">
-              {basicColors.map((col) => (
-                <button
-                  key={col}
-                  onClick={() => setStrokeColor(col)}
-                  style={{ backgroundColor: col }}
-                  className={`w-6 h-6 rounded-full border border-gray-600 ${
-                    strokeColor.toLowerCase() === col.toLowerCase() ? "ring-2 ring-indigo-600" : ""
-                  }`}
+          {mode !== "eraser" && (
+            <div>
+              <div className="mb-4">
+                <label htmlFor="strokeColor" className="block text-sm mb-1">
+                  Choose Color:
+                </label>
+                <input
+                  type="color"
+                  id="strokeColor"
+                  value={strokeColor}
+                  onChange={(e) => setStrokeColor(e.target.value)}
+                  className="w-full h-10 p-0 border-none bg-gray-700"
                 />
-              ))}
+              </div>
+              <div>
+                <p className="text-sm mb-1">Basic Colors:</p>
+                <div className="flex space-x-2">
+                  {basicColors.map((col) => (
+                    <button
+                      key={col}
+                      onClick={() => setStrokeColor(col)}
+                      style={{ backgroundColor: col }}
+                      className={`w-6 h-6 rounded-full border border-gray-600 ${
+                        strokeColor.toLowerCase() === col.toLowerCase() ? "ring-2 ring-indigo-600" : ""
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-          </div>}
+          )}
         </div>
       )}
 
@@ -210,8 +235,9 @@ const Page = ({params}:Param) => {
           <button
             key={shapeObj.name}
             onClick={() => {
-              setShowSettings(true)
-              setMode(shapeObj.name as DrawingMode)}}
+              setShowSettings(true);
+              setMode(shapeObj.name as DrawingMode);
+            }}
             className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors duration-200 
               ${
                 mode === shapeObj.name

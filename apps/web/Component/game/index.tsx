@@ -136,9 +136,8 @@ export default async function initDraw(
   strokeWidthRef: React.RefObject<number>,
   socket: WebSocket,
   params: { slug: string }
-) {
+): Promise<() => void> {
   const ctx = canvas.getContext("2d");
-  if (!ctx) return;
 
   // Consolidate all drawing variables in state.
   const state: DrawState = { ...defaultState };
@@ -734,4 +733,13 @@ export default async function initDraw(
 
   // Initial render.
   scheduleRender();
+
+  return function cleanup() {
+    canvas.removeEventListener("mousedown", handleMouseDown);
+    canvas.removeEventListener("mousemove", handleMouseMove);
+    canvas.removeEventListener("mouseup", handleMouseUp);
+    canvas.removeEventListener("wheel", handleWheel);
+    canvas.removeEventListener("dblclick", handleDoubleClick);
+    // remove any additional event listeners you added
+  };
 }
