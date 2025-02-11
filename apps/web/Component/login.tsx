@@ -5,12 +5,14 @@ import { Button } from '@repo/ui/button';
 import axios from 'axios';
 import { useNotification } from './notification';
 import { BACKEND_URL } from './Config';
+import { useRouter } from 'next/navigation';
 
 function Login({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {
     const { addNotification } = useNotification();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [processing,setProcessing] = useState(false)
+    const [processing,setProcessing] = useState(false);
+    const rounter = useRouter()
 
     async function handleLogin() {
       if(email == "" || password == ""){
@@ -27,6 +29,9 @@ function Login({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {
         })
         addNotification("success",res.data.message)
         setProcessing(false)
+        const jwtToken = res.data.token;
+        localStorage.setItem("authorization",jwtToken);
+        rounter.push('/Dashboard')
       } catch (error) {
         addNotification("error",error.response.data.message)
         setProcessing(false)
