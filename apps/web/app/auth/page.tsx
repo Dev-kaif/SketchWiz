@@ -9,8 +9,8 @@ function Page() {
   const [login, setLogin] = useState<boolean>();
 
   return (
-    <div className="bg-[#686279] flex items-center justify-center h-screen">
-      <div className="bg-[#2C2638] rounded-lg h-[85vh] w-[75vw] flex overflow-hidden relative">
+    <div className="bg-[#191414] flex items-center justify-center h-screen">
+      <div className="bg-gradient-to-tr from-[#0D2538] to-[#1A73E8] rounded-lg h-[85vh] w-[75vw] flex overflow-hidden relative">
         {/* Slider Component - animate its horizontal position */}
         <motion.div
           initial={{ x: 0 }}
