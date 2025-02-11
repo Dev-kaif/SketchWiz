@@ -1,2 +1,2 @@
 import 'dotenv/config'
-export const JWT_SECRET = process.env.JWT_SECRET || '65464'
+export const JWT_SECRET = process.env.JWT_SECRET 
