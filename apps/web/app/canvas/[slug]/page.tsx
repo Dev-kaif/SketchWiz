@@ -13,6 +13,7 @@ import {
   TypeOutline,
   Settings as SettingsIcon,
 } from "lucide-react";
+import socket from "../../../Component/socket";
 
 // Define available drawing modes
 type DrawingMode =
@@ -26,7 +27,13 @@ type DrawingMode =
   | "arrow"
   | null;
 
-const Page = () => {
+interface Param {
+  params: {
+    slug: string;
+  };
+}
+
+const Page = ({params}:Param) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const eraserCursorRef = useRef<HTMLDivElement>(null);
   const modeRef = useRef<DrawingMode>(null);
@@ -55,6 +62,7 @@ const Page = () => {
   // Define the eraser size (in pixels)
   const eraserSize = strokeWidth * 10;
 
+
   // Handle window resize and set canvas dimensions.
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -74,12 +82,15 @@ const Page = () => {
 
   // Initialize canvas when dimensions are available.
   useEffect(() => {
+
     const canvas = canvasRef.current;
     if (canvas && dimensions) {
       // Pass stroke settings refs into initDraw so drawing uses the current settings.
-      initDraw(canvas, modeRef, strokeColorRef, strokeWidthRef);
+      initDraw(canvas, modeRef, strokeColorRef, strokeWidthRef,socket,params);
     }
-  }, [dimensions,eraserSize]);
+
+  }, [dimensions, eraserSize, params]);
+
 
   // Update the eraser cursor position.
   useEffect(() => {
