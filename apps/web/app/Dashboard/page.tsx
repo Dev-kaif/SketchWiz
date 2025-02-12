@@ -86,13 +86,13 @@ function Page() {
         const res = await axios.get(`${BACKEND_URL}/api/rooms`);
         setRooms(res.data.rooms);
       } catch (error: any) {
-        console.log(error.response?.data?.message);
+        addNotification("error",error.response?.data?.message)
       } finally {
         setLoading(false);
       }
     }
     fetchRooms();
-  }, [callBackend]);
+  }, [addNotification, callBackend]);
 
   async function deleteRoom(id: number) {
     if (!window.confirm("Are you sure you want to delete this room?")) return;

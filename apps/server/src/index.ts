@@ -37,7 +37,6 @@ app.post("/api/signup", async (req: Request, res: Response) => {
     const { email,username,password,name,photo  } = validation.data;
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-    console.log(validation.data);
     
     await client.user.create({
       data: {
@@ -269,6 +268,4 @@ app.delete("/api/room/delete/content/:roomId", auth, async (req: Request, res: R
 
 const PORT = 5000;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT);

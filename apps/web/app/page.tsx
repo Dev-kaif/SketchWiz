@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Image from 'next/image';
 import { motion } from 'motion/react';
@@ -51,7 +51,8 @@ export default function HomePage() {
 
   // State to track which FAQ items are open
   const [openFaq, setOpenFaq] = useState<{ [key: number]: boolean }>({});
-  const router = useRouter()
+  const router = useRouter();
+  const[alreadyLogged,setAlreadyLogged] = useState(false)
 
   const toggleFaq = (index: number) => {
     setOpenFaq((prev) => ({
@@ -59,6 +60,13 @@ export default function HomePage() {
       [index]: !prev[index],
     }));
   };
+
+  useEffect(()=>{
+    const token = localStorage.getItem("authorization")
+    if(token){
+      setAlreadyLogged(true)
+    }
+  },[])
 
   return (
     <>
@@ -120,8 +128,12 @@ export default function HomePage() {
             Your next-level drawing and sketching tool. Simple, intuitive, and powerful.
           </p>
           <Button onClickHandler={()=>{
-              router.push('/auth')
-          }} className='primary' >Get Started</Button>
+            if(alreadyLogged){
+              router.push('/Dashboard')
+              return;
+            }
+            router.push('/auth')
+          }} className='primary' >{alreadyLogged? "Welcome Back":"Get Started"}</Button>
         </motion.section>
 
         {/* Features Overview */}

@@ -20,7 +20,6 @@ interface DataType {
 const users: User[] = [];
 
 wss.on("connection", (socket, request) => {
-  console.log("User connected");
 
   try {
     const url = request.url;
@@ -88,7 +87,6 @@ wss.on("connection", (socket, request) => {
     });
 
     socket.on("close", () => {
-      console.log("User disconnected");
       const index = users.indexOf(user);
       if (index !== -1) {
         users.splice(index, 1);

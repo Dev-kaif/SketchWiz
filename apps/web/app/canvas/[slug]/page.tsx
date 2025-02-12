@@ -15,7 +15,7 @@ import {
   Trash,
   LogOut,
 } from "lucide-react";
-import socket from "../../../Component/socket";
+import useSocket from "../../../Component/socket/useSocket";
 import axios from 'axios';
 import { BACKEND_URL } from "../../../Component/Config";
 import { useNotification } from "../../../Component/notification";
@@ -119,7 +119,6 @@ const Page = ({ params }: Param) => {
       cancelled = true;
       // When the effect cleans up, run the stored cleanup function.
       if (cleanupRef.current) {
-        console.log("Cleaning up initDraw event listeners");
         cleanupRef.current();
         cleanupRef.current = undefined;
       }
@@ -153,8 +152,8 @@ const Page = ({ params }: Param) => {
       const roomId = res.data.room.id;
       const delResponse = await axios.delete(`${BACKEND_URL}/api/room/delete/content/${roomId}`);
       addNotification("success",delResponse.data.message);
-    } catch (error) {
-      console.log(error);
+    } catch (error:any) {
+      addNotification("error",error.response?.data?.message || "")
     }finally{
       setCallDelete(prev=>!prev)
     }
