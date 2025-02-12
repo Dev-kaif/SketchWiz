@@ -54,7 +54,8 @@ const Page = ({ params }: Param) => {
   // Refs to hold dynamic stroke settings so they’re used in drawing operations.
   const strokeColorRef = useRef(strokeColor);
   const strokeWidthRef = useRef(strokeWidth);
-  const router = useRouter()
+  const router = useRouter();
+  const socket = useSocket();
 
   useEffect(() => {
     strokeColorRef.current = strokeColor;
@@ -96,6 +97,7 @@ const Page = ({ params }: Param) => {
     let cancelled = false;
     if (canvas && dimensions) {
       (async () => {
+        if(!socket)return;
         // Await initDraw and get its cleanup function.
         const cleanup = await initDraw(
           canvas,
@@ -122,7 +124,7 @@ const Page = ({ params }: Param) => {
         cleanupRef.current = undefined;
       }
     };
-  }, [dimensions, eraserSize, params,callDelete]);
+  }, [dimensions, eraserSize, params, callDelete, socket]);
 
   // Update the eraser cursor position.
   useEffect(() => {
