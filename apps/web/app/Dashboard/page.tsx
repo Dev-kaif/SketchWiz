@@ -122,8 +122,10 @@ function Page() {
   };
 
   return (
-    <div className="bg-[#191414] min-w-screen min-h-screen text-white p-6 relative flex  items-center justify-center ">
-      <div className="absolute top-4 right-4">
+    <div className="bg-[#191414] min-h-screen text-white relative flex flex-col">
+      {/* Header */}
+      <header className="flex justify-between items-center p-4 md:p-6">
+        <h1 className="text-2xl font-bold">SketchWiz</h1>
         <Button
           size="text-sm"
           onClickHandler={() => setShowLogoutModal(true)}
@@ -134,13 +136,13 @@ function Page() {
             <LogOutIcon className="text-sm" />
           </div>
         </Button>
-      </div>
+      </header>
 
       {/* Logout Confirmation Modal */}
       {showLogoutModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-[#191414] outline text-white rounded-lg p-6 max-w-sm w-full mx-4">
-            <h3 className="text-xl font-semibold mb-4 ">Confirm Logout</h3>
+          <div className="bg-[#191414] outline text-white rounded-lg p-6 mx-4 max-w-sm w-full">
+            <h3 className="text-xl font-semibold mb-4">Confirm Logout</h3>
             <p className="mb-6">Are you sure you want to logout?</p>
             <div className="flex justify-end gap-4">
               <Button
@@ -156,6 +158,7 @@ function Page() {
           </div>
         </div>
       )}
+
       {/* Fixed overlay for deletion */}
       {deleting && (
         <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 z-50">
@@ -185,9 +188,9 @@ function Page() {
         </div>
       )}
 
-      <div className="flex flex-col items-center ">
-        {/* Centering container with a max width */}
-        <div className="w-full md:w-[100vw] max-w-screen-xl">
+      {/* Main Content */}
+      <main className="flex-grow flex flex-col items-center mt-6">
+        <div className="w-full max-w-6xl px-4">
           <div className="flex flex-col md:flex-row gap-6">
             {/* Left Column: Create and Join Rooms */}
             <div className="flex flex-col gap-6 w-full md:w-1/3">
@@ -230,7 +233,7 @@ function Page() {
             </div>
             {/* Right Column: Rooms Table */}
             <div className="w-full md:w-2/3 bg-gradient-to-tr from-[#0D2538] to-[#1A73E8] p-6 rounded-lg shadow-lg">
-              <h2 className="text-xl font-semibold mb-3 text-white">
+              <h2 className="text-xl font-semibold mb-3">
                 Your Available Rooms
               </h2>
               {loading ? (
@@ -258,51 +261,65 @@ function Page() {
                 </div>
               ) : rooms.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full table-auto bg-[#0D2538]">
-                    <thead>
-                      <tr className="bg-[#27304b] text-gray-200">
-                        <th className="px-4 py-2 text-left border-b border-gray-700 whitespace-nowrap">
+                  <table className="w-full block md:table">
+                    <thead className="block md:table-header-group">
+                      <tr className="bg-[#27304b] text-gray-200 block md:table-row">
+                        <th className="px-4 py-2 text-left border-b border-gray-700">
                           ID
                         </th>
-                        <th className="px-4 py-2 text-left border-b border-gray-700 whitespace-nowrap">
+                        <th className="px-4 py-2 text-left border-b border-gray-700">
                           Room Name
                         </th>
-                        <th className="px-4 py-2 text-left border-b border-gray-700 whitespace-nowrap">
+                        <th className="px-4 py-2 text-left border-b border-gray-700">
                           Created At
                         </th>
-                        <th className="px-4 py-2 text-center border-b border-gray-700 whitespace-nowrap">
+                        <th className="px-4 py-2 text-center border-b border-gray-700">
                           Actions
                         </th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="block md:table-row-group">
                       {rooms.map((room) => (
                         <tr
                           key={room.id}
-                          className="hover:bg-[#151a29] transition-colors duration-200 border-b border-gray-700"
+                          className="bg-[#0D2538] border-b border-gray-700 block md:table-row mb-4 md:mb-0"
                         >
-                          <td className="px-4 py-2 text-white whitespace-nowrap">
+                          <td
+                            className="px-4 py-2 block md:table-cell"
+                            data-label="ID"
+                          >
                             {room.id}
                           </td>
-                          <td className="px-4 py-2 text-white whitespace-nowrap">
+                          <td
+                            className="px-4 py-2 block md:table-cell"
+                            data-label="Room Name"
+                          >
                             {room.slug}
                           </td>
-                          <td className="px-4 py-2 text-white whitespace-nowrap">
+                          <td
+                            className="px-4 py-2 block md:table-cell"
+                            data-label="Created At"
+                          >
                             {room.createdAt.split("T")[0]}
                           </td>
-                          <td className="px-4 py-2 flex justify-center gap-3 whitespace-nowrap">
-                            <Button
-                              onClickHandler={() => joinRoom(room.slug)}
-                              className="primary"
-                            >
-                              Join
-                            </Button>
-                            <Button
-                              onClickHandler={() => deleteRoom(room.id)}
-                              className="destructive"
-                            >
-                              Delete
-                            </Button>
+                          <td
+                            className="px-4 py-2 block md:table-cell"
+                            data-label="Actions"
+                          >
+                            <div className="flex justify-center gap-3">
+                              <Button
+                                onClickHandler={() => joinRoom(room.slug)}
+                                className="primary"
+                              >
+                                Join
+                              </Button>
+                              <Button
+                                onClickHandler={() => deleteRoom(room.id)}
+                                className="destructive"
+                              >
+                                Delete
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -317,7 +334,7 @@ function Page() {
             </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
