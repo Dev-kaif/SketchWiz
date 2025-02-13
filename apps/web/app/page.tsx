@@ -248,22 +248,22 @@ export default function HomePage() {
           <div className="flex flex-col md:flex-row gap-8">
             <div className="bg-[#333333] p-6 rounded-lg shadow-md flex-1">
               <p className="italic text-gray-400">
-                "SketchWiz has completely transformed the way I create digital
-                art. Highly recommended!"
+                &quot;SketchWiz has completely transformed the way I create digital
+                art. Highly recommended!&quot;
               </p>
               <p className="mt-4 font-bold">– Alex D.</p>
             </div>
             <div className="bg-[#333333] p-6 rounded-lg shadow-md flex-1">
               <p className="italic text-gray-400">
-                "The collaborative features are a game-changer. It's like having
-                a digital studio at my fingertips."
+                &quot;The collaborative features are a game-changer. It&apos;s like having
+                a digital studio at my fingertips.&quot;
               </p>
               <p className="mt-4 font-bold">– Jamie L.</p>
             </div>
             <div className="bg-[#333333] p-6 rounded-lg shadow-md flex-1">
               <p className="italic text-gray-400">
-                "Intuitive, powerful, and fun to use. SketchWiz is my go-to app
-                for quick sketches."
+                &quot;Intuitive, powerful, and fun to use. SketchWiz is my go-to app
+                for quick sketches.&quot;
               </p>
               <p className="mt-4 font-bold">– Morgan S.</p>
             </div>
@@ -290,7 +290,7 @@ export default function HomePage() {
               is as fluid and boundless as your imagination.
             </p>
             <p className="text-lg text-gray-300">
-              Whether you're a seasoned professional or just beginning your
+              Whether you&apos;re a seasoned professional or just beginning your
               creative journey, SketchWiz offers an intuitive and flexible
               workspace that adapts to your needs.
             </p>
