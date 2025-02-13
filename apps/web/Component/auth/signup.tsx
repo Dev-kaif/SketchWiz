@@ -4,8 +4,8 @@ import React, { useState } from 'react'
 import Input from '@repo/ui/input';
 import { Button } from '@repo/ui/button';
 import axios from 'axios';
-import { useNotification } from './notification';
-import { BACKEND_URL } from './Config';
+import { useNotification } from '../notification/notification';
+import { BACKEND_URL } from '../Config';
 
 function Signup({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {
     const { addNotification } = useNotification(); 

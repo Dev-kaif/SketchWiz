@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import Silder from "../../Component/slider";
-import Signup from "../../Component/signup";
+import Signup from "../../Component/auth/signup";
 import Login from "../../Component/login";
 
 function Page() {

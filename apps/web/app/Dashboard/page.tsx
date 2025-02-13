@@ -4,7 +4,7 @@ import axios from "../../Component/axios/index";
 import { useEffect, useRef, useState } from "react";
 import { BACKEND_URL } from "../../Component/Config";
 import { useRouter } from "next/navigation";
-import { useNotification } from "../../Component/notification";
+import { useNotification } from "../../Component/notification/notification";
 import { Button } from "@repo/ui/button";
 import Input from "@repo/ui/input";
 import { LogOutIcon } from "lucide-react";

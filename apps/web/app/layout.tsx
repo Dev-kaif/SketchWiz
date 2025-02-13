@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import '@repo/ui/styles.css'
-import { NotificationProvider } from "../Component/notification";
+import { NotificationProvider } from "../Component/notification/notification";
 
 export const metadata: Metadata = {
   title: "Next App",

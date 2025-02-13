@@ -16,7 +16,7 @@ const notificationTypes = {
   info: { icon: <Info className="text-blue-500" />, bg: "bg-blue-100", text: "text-blue-800" },
 };
 
-const Notification: React.FC<NotificationProps> = ({ type = "info", message, duration = 3000, onClose }) => {
+const Notification = ({ type = "info", message, duration = 3000, onClose }:NotificationProps) => {
   useEffect(() => {
     const timer = setTimeout(onClose, duration);
     return () => clearTimeout(timer);
@@ -51,7 +51,7 @@ export const useNotification = () => {
   return context;
 };
 
-export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const NotificationProvider = ({ children }:{ children: ReactNode }) => {
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
 
   const addNotification = (type: "success" | "error" | "warning" | "info", message: string) => {

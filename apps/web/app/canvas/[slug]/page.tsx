@@ -18,7 +18,7 @@ import {
 import useSocket from "../../../Component/socket/useSocket";
 import axios from 'axios';
 import { BACKEND_URL } from "../../../Component/Config";
-import { useNotification } from "../../../Component/notification";
+import { useNotification } from "../../../Component/notification/notification";
 import { useRouter } from "next/navigation";
 
 // Define available drawing modes
