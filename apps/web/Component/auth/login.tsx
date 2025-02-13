@@ -4,7 +4,7 @@ import Input from '@repo/ui/input';
 import { Button } from '@repo/ui/button';
 import axios from 'axios';
 import { useNotification } from '../notification/notification';
-import { BACKEND_URL } from './Config';
+import { BACKEND_URL } from '../Config';
 import { useRouter } from 'next/navigation';
 
 function Login({isLoginTrue}:{isLoginTrue:(e:boolean)=>void}) {

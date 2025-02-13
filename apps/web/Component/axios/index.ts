@@ -1,4 +1,3 @@
-// src/services/axiosConfig.ts
 
 import axios from 'axios';
 

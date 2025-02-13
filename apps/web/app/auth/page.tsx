@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import Silder from "../../Component/slider";
+import Silder from "../../Component/auth/slider";
 import Signup from "../../Component/auth/signup";
-import Login from "../../Component/login";
+import Login from "../../Component/auth/login";
 
 function Page() {
   const [login, setLogin] = useState<boolean>();

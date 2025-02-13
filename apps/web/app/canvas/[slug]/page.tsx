@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import initDraw from "../../../Component/game";
+import initDraw from "../../../Component/canvas Logic";
 import {
   Circle,
   Eraser,
@@ -34,12 +34,12 @@ type DrawingMode =
   | null;
 
 interface Param {
-  params: {
-    slug: string;
-  };
+  params: Promise<{ slug: string }>;
+
 }
 
-const Page = ({ params }: Param) => {
+const Page = ( {params} : Param) => {
+  
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const eraserCursorRef = useRef<HTMLDivElement>(null);
   const modeRef = useRef<DrawingMode>(null);

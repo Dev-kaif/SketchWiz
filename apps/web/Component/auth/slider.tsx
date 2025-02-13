@@ -6,7 +6,7 @@ import Image from "next/image";
 import "swiper/css";
 import "swiper/css/autoplay";
 import "swiper/css/pagination";
-import { Button } from '../../../packages/ui/src/button';
+import { Button } from '@repo/ui/button';
 import {CornerUpLeft} from "lucide-react";
 import { useRouter } from "next/navigation";
 
