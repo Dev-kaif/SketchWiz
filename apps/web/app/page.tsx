@@ -1,21 +1,28 @@
-'use client';
-import { useEffect, useState } from 'react';
-import Head from 'next/head';
-import Image from 'next/image';
-import { motion } from 'motion/react';
-import { Button } from '@repo/ui/button';
-import { useRouter } from 'next/navigation';
-import { Mail, Instagram, Twitter, Github, Linkedin } from 'lucide-react'
+"use client";
+import { useEffect, useState } from "react";
+import Head from "next/head";
+import Image from "next/image";
+import { motion } from "motion/react";
+import { Button } from "@repo/ui/button";
+import { useRouter } from "next/navigation";
+import {
+  Mail,
+  Instagram,
+  Twitter,
+  Github,
+  Linkedin,
+  ArrowRightToLine,
+} from "lucide-react";
 
 // Define animation variants for fade-in and slide-in effects
 const fadeInVariant = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 1.5, ease: 'easeIn' } },
+  visible: { opacity: 1, transition: { duration: 1.5, ease: "easeIn" } },
 };
 
 const slideInVariant = {
   hidden: { y: 20, opacity: 0 },
-  visible: { y: 0, opacity: 1, transition: { duration: 1, ease: 'easeOut' } },
+  visible: { y: 0, opacity: 1, transition: { duration: 1, ease: "easeOut" } },
 };
 
 export default function HomePage() {
@@ -43,16 +50,14 @@ export default function HomePage() {
     },
     {
       question: "Can I export my drawings?",
-      answer:
-        "Currently NO but in future Yes.",
-    }
+      answer: "Currently NO but in future Yes.",
+    },
   ];
-  
 
   // State to track which FAQ items are open
   const [openFaq, setOpenFaq] = useState<{ [key: number]: boolean }>({});
   const router = useRouter();
-  const[alreadyLogged,setAlreadyLogged] = useState(false)
+  const [alreadyLogged, setAlreadyLogged] = useState(false);
 
   const toggleFaq = (index: number) => {
     setOpenFaq((prev) => ({
@@ -61,12 +66,12 @@ export default function HomePage() {
     }));
   };
 
-  useEffect(()=>{
-    const token = localStorage.getItem("authorization")
-    if(token){
-      setAlreadyLogged(true)
+  useEffect(() => {
+    const token = localStorage.getItem("authorization");
+    if (token) {
+      setAlreadyLogged(true);
     }
-  },[])
+  }, []);
 
   return (
     <>
@@ -125,15 +130,31 @@ export default function HomePage() {
             Unleash Your Creativity with SketchWiz
           </h2>
           <p className="text-lg md:text-2xl mb-8 text-gray-300">
-            Your next-level drawing and sketching tool. Simple, intuitive, and powerful.
+            Your next-level drawing and sketching tool. Simple, intuitive, and
+            powerful.
           </p>
-          <Button onClickHandler={()=>{
-            if(alreadyLogged){
-              router.push('/Dashboard')
-              return;
-            }
-            router.push('/auth')
-          }} className='primary' >{alreadyLogged? "Welcome Back":"Get Started"}</Button>
+          <div className="flex items-center justify-center gap-5">
+            {alreadyLogged && (
+              <div className="text-lg md:text-xl text-gray-300">
+                Welcome Back
+              </div>
+            )}
+            <Button
+              onClickHandler={() => {
+                if (alreadyLogged) {
+                  router.push("/Dashboard");
+                  return;
+                }
+                router.push("/auth");
+              }}
+              className="primary"
+            >
+              <div className="flex items-center gap-2">
+                <div>{alreadyLogged ? "Continue" : "Get Started"}</div>
+                {alreadyLogged && <ArrowRightToLine />}
+              </div>
+            </Button>
+          </div>
         </motion.section>
 
         {/* Features Overview */}
@@ -149,11 +170,14 @@ export default function HomePage() {
             <div className="p-6 bg-[#333333] rounded-lg hover:shadow-xl transition-shadow duration-300">
               <h4 className="text-xl font-semibold mb-2">Infinite Canvas</h4>
               <p className="text-gray-400">
-                Experience limitless creativity with an endless workspace that adapts to your vision.
+                Experience limitless creativity with an endless workspace that
+                adapts to your vision.
               </p>
             </div>
             <div className="p-6 bg-[#333333] rounded-lg hover:shadow-xl transition-shadow duration-300">
-              <h4 className="text-xl font-semibold mb-2">Collaborative Tools</h4>
+              <h4 className="text-xl font-semibold mb-2">
+                Collaborative Tools
+              </h4>
               <p className="text-gray-400">
                 Work in real-time with friends or colleagues to create together.
               </p>
@@ -161,7 +185,8 @@ export default function HomePage() {
             <div className="p-6 bg-[#333333] rounded-lg hover:shadow-xl transition-shadow duration-300">
               <h4 className="text-xl font-semibold mb-2">Powerful Editing</h4>
               <p className="text-gray-400">
-                Advanced features that provide both precision and flexibility in your designs.
+                Advanced features that provide both precision and flexibility in
+                your designs.
               </p>
             </div>
           </div>
@@ -175,7 +200,9 @@ export default function HomePage() {
           animate="visible"
           variants={fadeInVariant}
         >
-          <h3 className="text-3xl font-bold text-center mb-10">See SketchWiz in Action</h3>
+          <h3 className="text-3xl font-bold text-center mb-10">
+            See SketchWiz in Action
+          </h3>
           <div className="flex flex-col md:flex-row items-center justify-center gap-8">
             <div className="relative w-full md:w-1/3 h-64">
               <Image
@@ -215,23 +242,28 @@ export default function HomePage() {
           animate="visible"
           variants={slideInVariant}
         >
-          <h3 className="text-3xl font-bold text-center mb-10">What Our Users Say</h3>
+          <h3 className="text-3xl font-bold text-center mb-10">
+            What Our Users Say
+          </h3>
           <div className="flex flex-col md:flex-row gap-8">
             <div className="bg-[#333333] p-6 rounded-lg shadow-md flex-1">
               <p className="italic text-gray-400">
-                "SketchWiz has completely transformed the way I create digital art. Highly recommended!"
+                "SketchWiz has completely transformed the way I create digital
+                art. Highly recommended!"
               </p>
               <p className="mt-4 font-bold">– Alex D.</p>
             </div>
             <div className="bg-[#333333] p-6 rounded-lg shadow-md flex-1">
               <p className="italic text-gray-400">
-                "The collaborative features are a game-changer. It's like having a digital studio at my fingertips."
+                "The collaborative features are a game-changer. It's like having
+                a digital studio at my fingertips."
               </p>
               <p className="mt-4 font-bold">– Jamie L.</p>
             </div>
             <div className="bg-[#333333] p-6 rounded-lg shadow-md flex-1">
               <p className="italic text-gray-400">
-                "Intuitive, powerful, and fun to use. SketchWiz is my go-to app for quick sketches."
+                "Intuitive, powerful, and fun to use. SketchWiz is my go-to app
+                for quick sketches."
               </p>
               <p className="mt-4 font-bold">– Morgan S.</p>
             </div>
@@ -246,13 +278,21 @@ export default function HomePage() {
           animate="visible"
           variants={fadeInVariant}
         >
-          <h3 className="text-3xl font-bold text-center mb-10">About SketchWiz</h3>
+          <h3 className="text-3xl font-bold text-center mb-10">
+            About SketchWiz
+          </h3>
           <div className="max-w-4xl mx-auto text-center">
             <p className="text-lg text-gray-300 mb-4">
-              SketchWiz is the ultimate digital sketching platform designed for artists, designers, and creative enthusiasts. Our innovative approach combines an infinite canvas with powerful editing tools and real-time collaboration, ensuring that your creative process is as fluid and boundless as your imagination.
+              SketchWiz is the ultimate digital sketching platform designed for
+              artists, designers, and creative enthusiasts. Our innovative
+              approach combines an infinite canvas with powerful editing tools
+              and real-time collaboration, ensuring that your creative process
+              is as fluid and boundless as your imagination.
             </p>
             <p className="text-lg text-gray-300">
-              Whether you're a seasoned professional or just beginning your creative journey, SketchWiz offers an intuitive and flexible workspace that adapts to your needs.
+              Whether you're a seasoned professional or just beginning your
+              creative journey, SketchWiz offers an intuitive and flexible
+              workspace that adapts to your needs.
             </p>
           </div>
         </motion.section>
@@ -265,7 +305,9 @@ export default function HomePage() {
           animate="visible"
           variants={slideInVariant}
         >
-          <h3 className="text-3xl font-bold text-center mb-10">Frequently Asked Questions</h3>
+          <h3 className="text-3xl font-bold text-center mb-10">
+            Frequently Asked Questions
+          </h3>
           <div className="max-w-4xl mx-auto space-y-4">
             {faqItems.map((item, index) => (
               <div key={index} className="border border-gray-700 rounded-md">
@@ -274,7 +316,7 @@ export default function HomePage() {
                   className="w-full text-left px-4 py-3 focus:outline-none flex justify-between items-center"
                 >
                   <span className="text-lg font-medium">{item.question}</span>
-                  <span>{openFaq[index] ? '-' : '+'}</span>
+                  <span>{openFaq[index] ? "-" : "+"}</span>
                 </button>
                 {openFaq[index] && (
                   <div className="px-4 py-3 border-t border-gray-700">
@@ -299,22 +341,34 @@ export default function HomePage() {
               <h3 className="text-xl font-semibold mb-4">Quick Links</h3>
               <ul>
                 <li className="mb-2">
-                  <a href="#hero" className="hover:text-[#1DB954] transition-colors duration-300">
+                  <a
+                    href="#hero"
+                    className="hover:text-[#1DB954] transition-colors duration-300"
+                  >
                     Home
                   </a>
                 </li>
                 <li className="mb-2">
-                  <a href="#features" className="hover:text-[#1DB954] transition-colors duration-300">
+                  <a
+                    href="#features"
+                    className="hover:text-[#1DB954] transition-colors duration-300"
+                  >
                     Features
                   </a>
                 </li>
                 <li className="mb-2">
-                  <a href="#about" className="hover:text-[#1DB954] transition-colors duration-300">
+                  <a
+                    href="#about"
+                    className="hover:text-[#1DB954] transition-colors duration-300"
+                  >
                     About
                   </a>
                 </li>
                 <li className="mb-2">
-                  <a href="#faq" className="hover:text-[#1DB954] transition-colors duration-300">
+                  <a
+                    href="#faq"
+                    className="hover:text-[#1DB954] transition-colors duration-300"
+                  >
                     FAQ
                   </a>
                 </li>
