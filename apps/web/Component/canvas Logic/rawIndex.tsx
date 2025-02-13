@@ -87,7 +87,7 @@ export default async function initDraw(
   strokeColorRef: React.RefObject<string>,
   strokeWidthRef: React.RefObject<number>,
   socket: WebSocket,
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
