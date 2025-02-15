@@ -62,6 +62,17 @@ const Page = ({ params }: Param) => {
   const strokeWidthRef = useRef(strokeWidth);
   const router = useRouter();
   const socket = useSocket();
+  const [roomId,setRoomId] = useState();
+
+  useEffect(()=>{
+    async function getRoomId() {
+      const slug = (await params).slug;
+      const roomIdRes = await axios.get(`${BACKEND_URL}/api/room/slug/${slug}`);
+      const room = roomIdRes.data.room.id
+      setRoomId(room);
+    }
+    getRoomId();
+  },[params])
 
   // Helper function that formats the AI response by removing curly braces and quotes.
   const formatAIResponse = (response: string) => {
@@ -81,7 +92,6 @@ const Page = ({ params }: Param) => {
       return response;
     }
   };
-  
 
   // AI send handler
   const handleSend = () => {
@@ -90,7 +100,7 @@ const Page = ({ params }: Param) => {
 
     // Convert the canvas content to a Blob.
     canvas.toBlob(async (blob) => {
-      if (!blob) {
+      if (!blob || !socket) {
         console.error("Could not convert canvas to blob.");
         return;
       }
@@ -110,8 +120,12 @@ const Page = ({ params }: Param) => {
             },
           }
         );
+
         // Store the first analysis result as a string in state.
         setAiResponse(JSON.stringify(response.data.analysisResult[0]));
+        const message = { type: "ai", roomId, message: JSON.stringify(response.data.analysisResult[0]) };
+        socket.send(JSON.stringify(message))
+
       } catch (error: any) {
         console.error("Error sending canvas data:", error);
       }
@@ -165,7 +179,8 @@ const Page = ({ params }: Param) => {
           strokeColorRef,
           strokeWidthRef,
           socket,
-          params
+          params,
+          setAiResponse
         );
         if (!cancelled) {
           cleanupRef.current = cleanup;

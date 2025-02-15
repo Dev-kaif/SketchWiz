@@ -12,7 +12,7 @@ interface User {
 }
 
 interface DataType {
-  type: "join_room" | "leave_room" | "chat";
+  type: "join_room" | "leave_room" | "chat" | "ai";
   roomId: number;
   message?: string;
 }
@@ -51,7 +51,7 @@ wss.on("connection", (socket, request) => {
             user.rooms = user.rooms.filter((id) => id !== parsedData.roomId);
             break;
 
-          case "chat":
+          case "chat" :
             if (!parsedData.message) {
               console.warn("Chat message is missing");
               return;
@@ -70,6 +70,25 @@ wss.on("connection", (socket, request) => {
                 user.ws.send(
                   JSON.stringify({
                     type: "chat",
+                    message: parsedData.message,
+                    roomId: parsedData.roomId,
+                  })
+                );
+              }
+            });
+            break;
+
+          case "ai" :
+            if (!parsedData.message) {
+              console.warn("Chat message is missing");
+              return;
+            }
+
+            users.forEach((user) => {
+              if (user.rooms.includes(parsedData.roomId)) {
+                user.ws.send(
+                  JSON.stringify({
+                    type: "ai",
                     message: parsedData.message,
                     roomId: parsedData.roomId,
                   })

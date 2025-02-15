@@ -116,7 +116,8 @@ export default async function initDraw(
   strokeColorRef: React.RefObject<string>,
   strokeWidthRef: React.RefObject<number>,
   socket: WebSocket,
-  params: Promise<{ slug: string }>
+  params: Promise<{ slug: string }>,
+  setAiResponse :(a:string)=>void
 ): Promise<() => void> {
 
   const defaultState: DrawState = {
@@ -138,7 +139,6 @@ export default async function initDraw(
     currentY: undefined,
     textPreview: undefined,
   };
-
   const ctx = canvas.getContext("2d");
 
   // Consolidate all drawing variables in state.
@@ -425,6 +425,9 @@ export default async function initDraw(
       if (data.type === "chat" && data.message) {
         state.shapes.push(data.message);
         scheduleRender();
+      }
+      if(data.type === "ai"){
+        setAiResponse(data.message)
       }
     } catch (error) {
       console.error("Error processing incoming socket message:", error);
