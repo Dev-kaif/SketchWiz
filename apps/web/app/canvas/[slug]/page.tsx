@@ -14,9 +14,11 @@ import {
   Settings as SettingsIcon,
   Trash,
   LogOut,
+  X,
+  Play,
 } from "lucide-react";
 import useSocket from "../../../Component/socket/useSocket";
-import axios from 'axios';
+import axios from "axios";
 import { BACKEND_URL } from "../../../Component/Config";
 import { useNotification } from "../../../Component/notification/notification";
 import { useRouter } from "next/navigation";
@@ -35,27 +37,86 @@ type DrawingMode =
 
 interface Param {
   params: Promise<{ slug: string }>;
-
 }
 
-const Page = ( {params} : Param) => {
-  
+const Page = ({ params }: Param) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const eraserCursorRef = useRef<HTMLDivElement>(null);
   const modeRef = useRef<DrawingMode>(null);
   const [mode, setMode] = useState<DrawingMode>(null);
-  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
-  const [callDelete ,setCallDelete] = useState(false);
+  const [dimensions, setDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [callDelete, setCallDelete] = useState(false);
   const { addNotification } = useNotification();
   // Stroke settings (default: white & 3)
   const [strokeColor, setStrokeColor] = useState("#ffffff");
   const [strokeWidth, setStrokeWidth] = useState(3);
+
+  // New state for storing the AI response
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
 
   // Refs to hold dynamic stroke settings so they’re used in drawing operations.
   const strokeColorRef = useRef(strokeColor);
   const strokeWidthRef = useRef(strokeWidth);
   const router = useRouter();
   const socket = useSocket();
+
+  // Helper function that formats the AI response by removing curly braces and quotes.
+  const formatAIResponse = (response: string) => {
+    try {
+      const parsed = JSON.parse(response);
+      return Object.entries(parsed)
+        .map(([key, value]) => {
+          // If the value is an object, stringify it with indentation.
+          const formattedValue =
+            typeof value === "object" && value !== null
+              ? JSON.stringify(value, null, 2)
+              : value;
+          return `${key}: ${formattedValue}`;
+        })
+        .join("\n");
+    } catch (error:any) {
+      return response;
+    }
+  };
+  
+
+  // AI send handler
+  const handleSend = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Convert the canvas content to a Blob.
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        console.error("Could not convert canvas to blob.");
+        return;
+      }
+
+      // Prepare FormData and append the blob.
+      const formData = new FormData();
+      formData.append("image", blob, "canvas.png");
+
+      try {
+        // Send a POST request to the /analyze endpoint using Axios.
+        const response = await axios.post(
+          `${BACKEND_URL}/api/analyze/ai`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+        // Store the first analysis result as a string in state.
+        setAiResponse(JSON.stringify(response.data.analysisResult[0]));
+      } catch (error: any) {
+        console.error("Error sending canvas data:", error);
+      }
+    }, "image/png");
+  };
 
   useEffect(() => {
     strokeColorRef.current = strokeColor;
@@ -97,27 +158,24 @@ const Page = ( {params} : Param) => {
     let cancelled = false;
     if (canvas && dimensions) {
       (async () => {
-        if(!socket)return;
-        // Await initDraw and get its cleanup function.
+        if (!socket) return;
         const cleanup = await initDraw(
           canvas,
           modeRef,
           strokeColorRef,
           strokeWidthRef,
           socket,
-          params // pass params directly
+          params
         );
         if (!cancelled) {
           cleanupRef.current = cleanup;
         } else {
-          // If the effect has already been cleaned up, run cleanup immediately.
           cleanup();
         }
       })();
     }
     return () => {
       cancelled = true;
-      // When the effect cleans up, run the stored cleanup function.
       if (cleanupRef.current) {
         cleanupRef.current();
         cleanupRef.current = undefined;
@@ -143,42 +201,73 @@ const Page = ( {params} : Param) => {
   if (!dimensions) return null;
 
   // Basic color swatches for quick selection.
-  const basicColors = ["#ffffff", "#ff4d4d", "#4dff4d", "#4d9fff", "#ffeb3b", "#ff66ff", "#00e5ff"];
+  const basicColors = [
+    "#ffffff",
+    "#ff4d4d",
+    "#4dff4d",
+    "#4d9fff",
+    "#ffeb3b",
+    "#ff66ff",
+    "#00e5ff",
+  ];
 
   async function deleteAllContent() {
     try {
       const slug = (await params).slug;
       const res = await axios.get(`${BACKEND_URL}/api/room/slug/${slug}`);
       const roomId = res.data.room.id;
-      const delResponse = await axios.delete(`${BACKEND_URL}/api/room/delete/content/${roomId}`);
-      addNotification("success",delResponse.data.message);
-    } catch (error:any) {
-      addNotification("error",error.response?.data?.message || "")
-    }finally{
-      setCallDelete(prev=>!prev)
+      const delResponse = await axios.delete(
+        `${BACKEND_URL}/api/room/delete/content/${roomId}`
+      );
+      addNotification("success", delResponse.data.message);
+    } catch (error: any) {
+      addNotification("error", error.response?.data?.message || "");
+    } finally {
+      setCallDelete((prev) => !prev);
     }
   }
 
   return (
     <div className="relative">
+      {/* AI Response Overlay at Bottom Right */}
+      {aiResponse && (
+        <div className="fixed right-0 bottom-0 z-50 bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full m-4">
+          {/* Cross Button to Dismiss */}
+          <button
+            onClick={() => setAiResponse(null)}
+            className="absolute top-2 right-2 text-gray-300 hover:text-white"
+          >
+            <X size={24} />
+          </button>
+          <pre className="text-white whitespace-pre-wrap">
+            {formatAIResponse(aiResponse)}
+          </pre>
+        </div>
+      )}
       {/* Toggle Settings Button */}
       <button
         onClick={() => setShowSettings(!showSettings)}
-        className="absolute z-50 top-4 left-4 p-2 rounded-full bg-gray-800 text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
+        className="absolute z-30 top-4 left-4 p-2 rounded-full bg-gray-800 text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
       >
         <SettingsIcon size={24} />
       </button>
       <button
         onClick={() => deleteAllContent()}
-        className="absolute z-50 top-4 right-20 p-2 rounded-full bg-gray-800 text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
+        className="absolute z-30 top-4 right-20 p-2 rounded-full bg-gray-800 text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
       >
         <Trash size={24} />
       </button>
       <button
-        onClick={() => router.push('/Dashboard')}
-        className="absolute z-50 top-4 right-6 p-2 rounded-full bg-gray-800 text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
+        onClick={() => router.push("/Dashboard")}
+        className="absolute z-30 top-4 right-6 p-2 rounded-full bg-gray-800 text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
       >
         <LogOut size={24} />
+      </button>
+      <button
+        onClick={() => handleSend()}
+        className="absolute z-30 top-4 right-32 p-2 rounded-full bg-gray-800 text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
+      >
+        <Play size={24} />
       </button>
 
       {/* Dynamic Settings Panel */}
@@ -222,7 +311,9 @@ const Page = ( {params} : Param) => {
                       onClick={() => setStrokeColor(col)}
                       style={{ backgroundColor: col }}
                       className={`w-6 h-6 rounded-full border border-gray-600 ${
-                        strokeColor.toLowerCase() === col.toLowerCase() ? "ring-2 ring-indigo-600" : ""
+                        strokeColor.toLowerCase() === col.toLowerCase()
+                          ? "ring-2 ring-indigo-600"
+                          : ""
                       }`}
                     />
                   ))}
