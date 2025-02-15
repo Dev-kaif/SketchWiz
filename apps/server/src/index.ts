@@ -354,7 +354,6 @@ async function analyzeImage(imageBuffer: Buffer,dictOfVars: Record<string, any>)
     const result = await model.generateContent([prompt, imagePart]);
     const responseText: string = result.response.text();
 
-    console.log("Response from Gemini:", responseText);
 
     // Clean up the response by removing markdown formatting and normalizing quotes
     const cleanedResponse = responseText
