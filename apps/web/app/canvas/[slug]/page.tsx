@@ -102,7 +102,6 @@ const Page = ({ params }: Param) => {
     // Convert the canvas content to a Blob.
     canvas.toBlob(async (blob) => {
       if (!blob || !socket) {
-        console.error("Could not convert canvas to blob.");
         return;
       }
 
@@ -131,7 +130,6 @@ const Page = ({ params }: Param) => {
         };
         socket.send(JSON.stringify(message));
       } catch (error: any) {
-        console.error("Error sending canvas data:", error);
         setAiResponse(JSON.stringify(error.rawData[0]));
       }finally{
         setRunningAi(false)

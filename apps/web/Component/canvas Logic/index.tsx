@@ -420,7 +420,6 @@ export default async function initDraw(
   const roomId = await loadPreviousShapes();
 
   socket.onmessage = (e) => {
-    try {
       const data = JSON.parse(e.data);
       if (data.type === "chat" && data.message) {
         state.shapes.push(data.message);
@@ -429,9 +428,6 @@ export default async function initDraw(
       if(data.type === "ai"){
         setAiResponse(data.message)
       }
-    } catch (error) {
-      console.error("Error processing incoming socket message:", error);
-    }
   };
 
   function sendShapeMessage(shape: Shape) {

@@ -37,7 +37,6 @@ wss.on("connection", (socket, request) => {
     users.push(user);
 
     socket.on("message", async (data) => {
-      try {
         const parsedData: DataType = JSON.parse(data.toString());
 
         switch (parsedData.type) {
@@ -53,7 +52,6 @@ wss.on("connection", (socket, request) => {
 
           case "chat" :
             if (!parsedData.message) {
-              console.warn("Chat message is missing");
               return;
             }
 
@@ -80,7 +78,6 @@ wss.on("connection", (socket, request) => {
 
           case "ai" :
             if (!parsedData.message) {
-              console.warn("Chat message is missing");
               return;
             }
 
@@ -98,11 +95,8 @@ wss.on("connection", (socket, request) => {
             break;
 
           default:
-            console.warn("Unknown message type:", parsedData.type);
         }
-      } catch (error) {
-        console.error("Message handling error:", error);
-      }
+
     });
 
     socket.on("close", () => {
@@ -112,7 +106,6 @@ wss.on("connection", (socket, request) => {
       }
     });
   } catch (error) {
-    console.error("Authentication error:", error);
     socket.close();
   }
 });

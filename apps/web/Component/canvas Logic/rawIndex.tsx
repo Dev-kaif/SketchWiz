@@ -114,15 +114,11 @@ export default async function initDraw(
   await addShapes();
 
   socket.onmessage = (e) => {
-    try {
       const data = JSON.parse(e.data);
       if (data.type === "chat" && data.message) {
         existingShape.push(data.message);
         renderAll();
       }
-    } catch (error) {
-      console.error("Error processing incoming socket message:", error);
-    }
   };
 
   // Helper to send a shape over the WebSocket.

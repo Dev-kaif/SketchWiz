@@ -110,7 +110,6 @@ app.post("/api/signin", async (req: Request, res: Response) => {
     });
     return;
   } catch (error) {
-    console.error("Signin error:", error);
     res.status(500).json({
       message: "Internal server error during signin",
     });
@@ -145,7 +144,6 @@ app.post("/api/room", auth, async (req: Request, res: Response) => {
     res.status(200).json({ message: "Joined room", room: response });
     return;
   } catch (error) {
-    console.error("Signin error:", error);
     res.status(403).json({
       message: "Room ALready exist",
     });
@@ -384,7 +382,6 @@ async function analyzeImage(
 
     return answers;
   } catch (error) {
-    console.error("Error generating content:", error);
     throw error;
   }
 }
@@ -414,7 +411,6 @@ app.post("/api/analyze/ai", upload.single("image"),async (req: Request, res: Res
       const analysisResult = await analyzeImage(imageBuffer, dictOfVars);
       res.json({ analysisResult });
     } catch (error) {
-      console.error("Error in /analyze endpoint:", error);
       res.status(500).json({ error: "Internal Server Error" });
     }
   }
