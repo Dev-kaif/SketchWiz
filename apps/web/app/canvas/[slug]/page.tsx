@@ -56,23 +56,24 @@ const Page = ({ params }: Param) => {
 
   // New state for storing the AI response
   const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [runningAi,setRunningAi] = useState(false)
 
   // Refs to hold dynamic stroke settings so they’re used in drawing operations.
   const strokeColorRef = useRef(strokeColor);
   const strokeWidthRef = useRef(strokeWidth);
   const router = useRouter();
   const socket = useSocket();
-  const [roomId,setRoomId] = useState();
+  const [roomId, setRoomId] = useState();
 
-  useEffect(()=>{
+  useEffect(() => {
     async function getRoomId() {
       const slug = (await params).slug;
       const roomIdRes = await axios.get(`${BACKEND_URL}/api/room/slug/${slug}`);
-      const room = roomIdRes.data.room.id
+      const room = roomIdRes.data.room.id;
       setRoomId(room);
     }
     getRoomId();
-  },[params])
+  }, [params]);
 
   // Helper function that formats the AI response by removing curly braces and quotes.
   const formatAIResponse = (response: string) => {
@@ -88,7 +89,7 @@ const Page = ({ params }: Param) => {
           return `${key}: ${formattedValue}`;
         })
         .join("\n");
-    } catch (error:any) {
+    } catch (error: any) {
       return response;
     }
   };
@@ -97,7 +98,7 @@ const Page = ({ params }: Param) => {
   const handleSend = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
+    setRunningAi(true)
     // Convert the canvas content to a Blob.
     canvas.toBlob(async (blob) => {
       if (!blob || !socket) {
@@ -123,11 +124,17 @@ const Page = ({ params }: Param) => {
 
         // Store the first analysis result as a string in state.
         setAiResponse(JSON.stringify(response.data.analysisResult[0]));
-        const message = { type: "ai", roomId, message: JSON.stringify(response.data.analysisResult[0]) };
-        socket.send(JSON.stringify(message))
-
+        const message = {
+          type: "ai",
+          roomId,
+          message: JSON.stringify(response.data.analysisResult[0]),
+        };
+        socket.send(JSON.stringify(message));
       } catch (error: any) {
         console.error("Error sending canvas data:", error);
+        setAiResponse(JSON.stringify(error.rawData[0]));
+      }finally{
+        setRunningAi(false)
       }
     }, "image/png");
   };
@@ -266,24 +273,28 @@ const Page = ({ params }: Param) => {
       >
         <SettingsIcon size={24} />
       </button>
-      <button
-        onClick={() => deleteAllContent()}
-        className="absolute z-30 top-4 right-20 p-2 rounded-full bg-gray-800 text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
-      >
-        <Trash size={24} />
-      </button>
-      <button
-        onClick={() => router.push("/Dashboard")}
-        className="absolute z-30 top-4 right-6 p-2 rounded-full bg-gray-800 text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
-      >
-        <LogOut size={24} />
-      </button>
-      <button
-        onClick={() => handleSend()}
-        className="absolute z-30 top-4 right-32 p-2 rounded-full bg-gray-800 text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
-      >
-        <Play size={24} />
-      </button>
+      <div className="absolute z-30 top-4 right-4 gap-3 flex items-center">
+        <button
+          onClick={() => handleSend()}
+          className={`${runningAi? "bg-gray-900":"bg-gray-800 hover:bg-indigo-600 hover:text-white"} border border-gray-700 shadow-md font-bold px-3 py-1 gap-1 flex items-center rounded-full  text-gray-300 transition-colors duration-200`}
+        >
+          <div>{runningAi? "Running...":"Run"}</div>
+          {!runningAi && <Play size={14} />}
+        </button>
+        <button
+          onClick={() => deleteAllContent()}
+          className="font-bold px-3 py-1 gap-1 flex items-center rounded-full  bg-gray-800 border border-gray-700 shadow-md  text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
+        >
+          <div>Clear</div>
+          <Trash size={18} />
+        </button>
+        <button
+          onClick={() => router.push("/Dashboard")}
+          className=" p-2 rounded-full  bg-gray-800 text-gray-300 hover:bg-indigo-600 hover:text-white transition-colors duration-200"
+        >
+          <LogOut size={18} />
+        </button>
+      </div>
 
       {/* Dynamic Settings Panel */}
       {showSettings && (
@@ -362,7 +373,7 @@ const Page = ({ params }: Param) => {
         }}
       />
       {/* Drawing Mode Toolbar */}
-      <div className="absolute z-40 top-4 left-1/2 transform -translate-x-1/2 flex items-center space-x-3 px-4 py-2 bg-gray-900 border border-gray-700 rounded-full shadow-md">
+      <div className="absolute z-40 top-4 left-1/2 transform -translate-x-1/2 flex items-center space-x-3 px-4 py-2 rounded-full bg-gray-900 border border-gray-700 shadow-md">
         {[
           { name: "rect", symbol: <RectangleHorizontal /> },
           { name: "circle", symbol: <Circle /> },
