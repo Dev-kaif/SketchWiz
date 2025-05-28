@@ -149,7 +149,6 @@ const Page = ({ params }: Param) => {
     isCanvasEmpty: () => boolean; 
     getSelectedShapesInfo: () => Array<{ shape: Shape; index: number; bounds: { x: number; y: number; width: number; height: number } }>;
     deleteShapeById: (id: string) => void;
-    captureSelectedShapeBlob: () => Promise<Blob | null>;
     captureSelectedAreaBlob: () => Promise<Blob | null>;
   } | undefined>(undefined);
 

@@ -1,6 +1,3 @@
-// initDraw.ts
-
-import React from "react"; // ADDED: React import is necessary for React.RefObject
 import axios from "../axios/index";
 import { BACKEND_URL } from "../Config";
 
@@ -130,7 +127,6 @@ interface InitDrawControls {
     bounds: { x: number; y: number; width: number; height: number };
   }>;
   deleteShapeById: (id: string) => void;
-  captureSelectedShapeBlob: () => Promise<Blob | null>;
   captureSelectedAreaBlob: () => Promise<Blob | null>;
 }
 
@@ -191,7 +187,6 @@ export default async function initDraw(
       isCanvasEmpty: () => true,
       getSelectedShapesInfo: () => [],
       deleteShapeById: () => {},
-      captureSelectedShapeBlob: () => Promise.resolve(null),
       captureSelectedAreaBlob: () => Promise.resolve(null)
     };
   }
@@ -351,59 +346,6 @@ export default async function initDraw(
     }
   }
 
-  function captureSelectedShapeBlob(): Promise<Blob | null> {
-    return new Promise((resolve) => {
-      // NOTE: This function currently only captures ONE selected shape.
-      // If multiple are selected, it will capture the first one found or needs modification.
-      // For multi-selection, you might want to capture all selected shapes together or iterate.
-      const firstSelectedId = state.selectedShapeIds[0];
-      if (!ctx || !firstSelectedId) {
-        resolve(null);
-        return;
-      }
-      const selectedShape = state.shapes.find((s) => s.id === firstSelectedId);
-
-      if (!selectedShape) {
-        resolve(null);
-        return;
-      }
-
-      const bounds = getShapeBounds(ctx, selectedShape);
-
-      if (!bounds) {
-        resolve(null);
-        return;
-      }
-
-      const tempCanvas = document.createElement("canvas");
-      const tempCtx = tempCanvas.getContext("2d");
-
-      if (!tempCtx) {
-        resolve(null);
-        return;
-      }
-
-      const padding = 10;
-      tempCanvas.width = bounds.width + 2 * padding;
-      tempCanvas.height = bounds.height + 2 * padding;
-
-      tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-      tempCtx.save();
-
-      tempCtx.translate(-bounds.x + padding, -bounds.y + padding);
-
-      const drawFn = (drawShape as any)[selectedShape.type];
-      if (drawFn) {
-        drawFn(tempCtx, selectedShape);
-      }
-      tempCtx.restore();
-
-      tempCanvas.toBlob((blob) => {
-        resolve(blob);
-        tempCanvas.remove();
-      }, "image/png");
-    });
-  }
 
   // Add this function inside initDraw, near getSelectedShapesInfo
 function captureSelectedAreaBlob(): Promise<Blob | null> {
@@ -1304,9 +1246,8 @@ function captureSelectedAreaBlob(): Promise<Blob | null> {
     },
     addShapeLocally: addShapeLocally,
     isCanvasEmpty: isCanvasEmpty,
-    getSelectedShapesInfo: getSelectedShapesInfo, // CHANGED
+    getSelectedShapesInfo: getSelectedShapesInfo, 
     deleteShapeById: deleteShapeById,
-    captureSelectedShapeBlob: captureSelectedShapeBlob,
     captureSelectedAreaBlob: captureSelectedAreaBlob,
   };
 }
