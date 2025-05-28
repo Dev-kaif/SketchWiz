@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-case-declarations */
 import axios from "../axios/index";
 import { BACKEND_URL } from "../Config";
 
@@ -427,8 +429,6 @@ function captureSelectedAreaBlob(): Promise<Blob | null> {
   });
 }
 
-  
-
   // --------------------------------------------------
   // Drawing Helper Functions for Permanent Shapes
   // --------------------------------------------------
@@ -595,7 +595,6 @@ function captureSelectedAreaBlob(): Promise<Blob | null> {
   // --------------------------------------------------
   function renderAll() {
     if (!ctx) return;
-    // `ctx` is guaranteed non-null here due to the initial check in initDraw
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
 
@@ -789,10 +788,6 @@ function captureSelectedAreaBlob(): Promise<Blob | null> {
     if (data.type === "ai") {
       setAiResponse(data.message);
     }
-    // ADDED: Type check for data.id before calling deleteShapeById
-    if (data.type === "delete_shape" && typeof data.id === "string") {
-      deleteShapeById(data.id);
-    }
   };
 
   function sendShapeMessage(shape: Shape) {
@@ -807,105 +802,134 @@ function captureSelectedAreaBlob(): Promise<Blob | null> {
   // Prevent default context menu.
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  // Mousedown handler.
-  function handleMouseDown(e: MouseEvent) {
-    if (!ctx) return;
-    const worldX = (e.clientX - state.offsetX) / state.scale;
-    const worldY = (e.clientY - state.offsetY) / state.scale;
+  const clientToWorld = (clientX: number, clientY: number) => ({
+    x: (clientX - state.offsetX) / state.scale,
+    y: (clientY - state.offsetY) / state.scale,
+  });
 
-    // If a text preview is active and the user clicks, cancel & finalize text.
+  //  new chnages 
+
+
+
+
+  function handleMouseDown(e: MouseEvent) {
+    // `ctx` is guaranteed non-null here due to the initial check in initDraw
+    const { x: worldX, y: worldY } = clientToWorld(e.clientX, e.clientY);
+    const isCtrlOrCmdPressed = e.ctrlKey || e.metaKey;
+  
+    // 1. Handle active text preview (highest priority as it's an overlay)
     if (state.textPreview && modeRef.current === "text") {
-      if (activeTextCleanup) {
-        activeTextCleanup();
-      }
+      activeTextCleanup?.(); // Finalize current text input
       return;
     }
-
+  
+    // 2. Handle right-click for panning (second highest priority)
     if (e.button === 2) {
-      // Right-click for panning.
       state.isPanning = true;
       state.panStartX = e.clientX - state.offsetX;
-      state.panStartY = e.clientY - state.panStartY;
+      state.panStartY = e.clientY - state.offsetY; // FIXED: Corrected this line
       state.selectedShapeIds = []; // Clear selection on pan start
-      scheduleRender(); // Rerender to remove selection highlight
-      return;
-    }
-    const isCtrlOrCmdPressed = e.ctrlKey || e.metaKey; // Ctrl for Windows/Linux, Cmd for Mac
-
-    if (modeRef.current === "select") {
-      let clickedShapeId: string | null = null;
-      for (let i = state.shapes.length - 1; i >= 0; i--) {
-        const shape = state.shapes[i];
-        if (shape) {
-          const bounds = getShapeBounds(ctx, shape);
-          if (
-            bounds &&
-            worldX >= bounds.x &&
-            worldX <= bounds.x + bounds.width &&
-            worldY >= bounds.y &&
-            worldY <= bounds.y + bounds.height
-          ) {
-            clickedShapeId = shape.id;
-            break;
-          }
-        }
-      }
-
-      if (clickedShapeId) {
-        const isAlreadySelected =
-          state.selectedShapeIds.includes(clickedShapeId);
-        if (isCtrlOrCmdPressed) {
-          if (isAlreadySelected) {
-            state.selectedShapeIds = state.selectedShapeIds.filter(
-              (id) => id !== clickedShapeId
-            );
-          } else {
-            state.selectedShapeIds.push(clickedShapeId);
-          }
-        } else {
-          state.selectedShapeIds = [clickedShapeId];
-        }
-      } else {
-        // No shape was clicked. Start marquee selection.
-        state.isMarqueeSelecting = true;
-        state.marqueeStartX = worldX;
-        state.marqueeStartY = worldY;
-        state.marqueeCurrentX = worldX; // Initialize current to start
-        state.marqueeCurrentY = worldY; // Initialize current to start
-
-        if (!isCtrlOrCmdPressed) {
-          // If Ctrl/Cmd not held, clear existing selection
-          state.selectedShapeIds = [];
-        }
-      }
+      state.isMarqueeSelecting = false; // Ensure marquee is off
       scheduleRender();
       return;
     }
-
-    // If starting a new drawing, clear all selections (both single and marquee)
-    state.selectedShapeIds = [];
-    state.isMarqueeSelecting = false; // Ensure marquee is off when starting a new shape
+  
+    // 3. Handle interactions based on the current drawing mode (left-click)
+    switch (modeRef.current) {
+      case "select":
+        handleSelectionStart(worldX, worldY, isCtrlOrCmdPressed);
+        break;
+  
+      case "freehand":
+      case "eraser":
+        startFreehandOrEraser(worldX, worldY, modeRef.current);
+        break;
+  
+      case "text":
+        // Text input is handled by double-click, so single click does nothing specific here
+        break;
+  
+      case "rect":
+      case "circle":
+      case "line":
+      case "triangle":
+      case "arrow":
+        startDrawingMode(worldX, worldY);
+        break;
+  
+      case null: // No mode selected, potentially clear selection
+        state.selectedShapeIds = [];
+        state.isMarqueeSelecting = false;
+        scheduleRender();
+        break;
+    }
+  }
+  
+  // Helper for starting selection (single or marquee)
+  function handleSelectionStart(worldX: number, worldY: number, isCtrlOrCmdPressed: boolean) {
+    if(!ctx)return;
+    let clickedShapeId: string | null = null;
+    // Iterate backwards to find the topmost shape that was clicked
+    for (let i = state.shapes.length - 1; i >= 0; i--) {
+      const shape = state.shapes[i];
+      if (shape) { // Type guard for safety
+        const bounds = getShapeBounds(ctx, shape); 
+        if (
+          bounds &&
+          worldX >= bounds.x && worldX <= bounds.x + bounds.width &&
+          worldY >= bounds.y && worldY <= bounds.y + bounds.height
+        ) {
+          clickedShapeId = shape.id;
+          break;
+        }
+      }
+    }
+  
+    if (clickedShapeId) {
+      const isAlreadySelected = state.selectedShapeIds.includes(clickedShapeId);
+      if (isCtrlOrCmdPressed) {
+        // Toggle selection for individual shape
+        state.selectedShapeIds = isAlreadySelected
+          ? state.selectedShapeIds.filter((id) => id !== clickedShapeId)
+          : [...state.selectedShapeIds, clickedShapeId];
+      } else {
+        // Single select: clear all and select only this one
+        state.selectedShapeIds = [clickedShapeId];
+      }
+      state.isMarqueeSelecting = false; // Ensure marquee is off
+    } else {
+      // No shape clicked, start marquee selection
+      state.isMarqueeSelecting = true;
+      state.marqueeStartX = worldX;
+      state.marqueeStartY = worldY;
+      state.marqueeCurrentX = worldX;
+      state.marqueeCurrentY = worldY;
+      if (!isCtrlOrCmdPressed) {
+        state.selectedShapeIds = []; // Clear existing selection if not multi-selecting
+      }
+    }
     scheduleRender();
-
-    // Freehand and eraser tools.
-    if (modeRef.current === "freehand" || modeRef.current === "eraser") {
-      if (modeRef.current === "eraser") {
-        state.isErasing = true;
-        state.eraserPoints = [{ x: worldX, y: worldY }];
-      } else {
-        state.isFreehandDrawing = true;
-        state.freehandPoints = [{ x: worldX, y: worldY }];
-      }
-      scheduleRender();
-      return;
+  }
+  
+  // Helper for starting freehand or eraser drawing
+  function startFreehandOrEraser(worldX: number, worldY: number, mode: "freehand" | "eraser") {
+    state.selectedShapeIds = []; // Clear selection when starting a new drawing
+    state.isMarqueeSelecting = false; // Ensure marquee is off
+    const points = [{ x: worldX, y: worldY }];
+    if (mode === "eraser") {
+      state.isErasing = true;
+      state.eraserPoints = points;
+    } else { // freehand
+      state.isFreehandDrawing = true;
+      state.freehandPoints = points;
     }
-
-    // Text is handled on double-click.
-    if (modeRef.current === "text") {
-      return;
-    }
-
-    // For other shapes, start drawing.
+    scheduleRender();
+  }
+  
+  // Helper for starting a new shape drawing
+  function startDrawingMode(worldX: number, worldY: number) {
+    state.selectedShapeIds = []; // Clear selection when starting a new drawing
+    state.isMarqueeSelecting = false; // Ensure marquee is off
     state.isDrawing = true;
     state.startX = worldX;
     state.startY = worldY;
@@ -913,65 +937,88 @@ function captureSelectedAreaBlob(): Promise<Blob | null> {
     state.currentY = worldY;
     scheduleRender();
   }
-
+  
+  
   // Mousemove handler.
   function handleMouseMove(e: MouseEvent) {
-    const worldX = (e.clientX - state.offsetX) / state.scale;
-    const worldY = (e.clientY - state.offsetY) / state.scale;
-
+    const { x: worldX, y: worldY } = clientToWorld(e.clientX, e.clientY);
+  
+    // Prioritize active drawing/panning states
     if (state.isErasing) {
       state.eraserPoints.push({ x: worldX, y: worldY });
-      scheduleRender();
-      return;
-    }
-    if (state.isFreehandDrawing) {
+    } else if (state.isFreehandDrawing) {
       state.freehandPoints.push({ x: worldX, y: worldY });
-      scheduleRender();
-      return;
-    }
-    if (state.isDrawing) {
+    } else if (state.isDrawing) {
       state.currentX = worldX;
       state.currentY = worldY;
-      scheduleRender();
-      return;
-    }
-    if (state.isPanning) {
+    } else if (state.isPanning) {
       state.offsetX = e.clientX - state.panStartX;
       state.offsetY = e.clientY - state.panStartY;
-      scheduleRender();
-      return; // Add return to prevent further processing
-    }
-    // NEW: Marquee selection movement
-    if (modeRef.current === "select" && state.isMarqueeSelecting) {
+    } else if (modeRef.current === "select" && state.isMarqueeSelecting) {
       state.marqueeCurrentX = worldX;
       state.marqueeCurrentY = worldY;
-      scheduleRender();
-      return; // Add return
-    }
-  }
-
-  // Mouseup handler.
-  function handleMouseUp(e: MouseEvent) {
-    if (!ctx) return;
-    const worldX = (e.clientX - state.offsetX) / state.scale;
-    const worldY = (e.clientY - state.offsetY) / state.scale;
-
-    if (e.button === 0 && state.isErasing) {
-      state.isErasing = false;
-      const newShape: Shape = {
-        id: crypto.randomUUID(),
-        type: "eraser",
-        points: state.eraserPoints,
-        size: strokeWidthRef.current * 10,
-      };
-      state.shapes.push(newShape);
-      sendShapeMessage(newShape);
-      state.eraserPoints = [];
-      scheduleRender();
+    } else {
+      // No active drawing/panning/marquee, no need to render
       return;
     }
-    if (e.button === 0 && state.isFreehandDrawing) {
-      state.isFreehandDrawing = false;
+    scheduleRender(); // Only render if a state change occurred
+  }
+  
+  // Mouseup handler.
+  function handleMouseUp(e: MouseEvent) {
+    // `ctx` is guaranteed non-null here due to the initial check in initDraw
+    const { x: worldX, y: worldY } = clientToWorld(e.clientX, e.clientY);
+    const isCtrlOrCmdPressed = e.ctrlKey || e.metaKey;
+  
+    // 1. Handle right-click for ending panning
+    if (e.button === 2 && state.isPanning) {
+      state.isPanning = false;
+      // No scheduleRender needed here, as mousemove already did it on last pan
+      return;
+    }
+  
+    // 2. Handle ending actions based on the current drawing mode
+    switch (modeRef.current) {
+      case "freehand":
+        if (state.isFreehandDrawing) {
+          finalizeFreehandDrawing();
+        }
+        break;
+  
+      case "eraser":
+        if (state.isErasing) {
+          finalizeEraserDrawing();
+        }
+        break;
+  
+      case "rect":
+      case "circle":
+      case "line":
+      case "triangle":
+      case "arrow":
+        if (state.isDrawing) {
+          finalizeDrawingMode(worldX, worldY);
+        }
+        break;
+  
+      case "select":
+        if (state.isMarqueeSelecting) {
+          endMarqueeSelection(worldX, worldY, isCtrlOrCmdPressed);
+        }
+        // If it was a single click in select mode (not marquee), no action needed here
+        break;
+  
+      case "text":
+      case null:
+        // No specific mouseup action for these modes
+        break;
+    }
+  }
+  
+  // Helper for finalizing freehand drawing
+  function finalizeFreehandDrawing() {
+    state.isFreehandDrawing = false;
+    if (state.freehandPoints.length > 0) { // Only add if points exist
       const newShape: Shape = {
         id: crypto.randomUUID(),
         type: "freehand",
@@ -981,19 +1028,35 @@ function captureSelectedAreaBlob(): Promise<Blob | null> {
       };
       state.shapes.push(newShape);
       sendShapeMessage(newShape);
-      state.freehandPoints = [];
-      scheduleRender();
-      return;
     }
-    if (e.button === 0 && state.isDrawing) {
-      state.isDrawing = false;
-      let newShape: Shape | null = null;
-      // Using nullish coalescing operator `??` is safer than `|| 0` for non-numeric defaults
-      // But for `currentX`/`currentY` that might be `undefined`, `|| worldX` is correct for providing a default.
-      const finalX = state.currentX ?? worldX;
-      const finalY = state.currentY ?? worldY;
-
-      if (modeRef.current === "rect") {
+    state.freehandPoints = [];
+    scheduleRender();
+  }
+  
+  // Helper for finalizing eraser drawing
+  function finalizeEraserDrawing() {
+    state.isErasing = false;
+    if (state.eraserPoints.length > 0) { // Only add if points exist
+      const newShape: Shape = {
+        id: crypto.randomUUID(),
+        type: "eraser",
+        points: state.eraserPoints,
+        size: strokeWidthRef.current * 10,
+      };
+      state.shapes.push(newShape);
+      sendShapeMessage(newShape);
+    }
+    state.eraserPoints = [];
+    scheduleRender();
+  }
+  
+  // Helper for finalizing regular shape drawing
+  function finalizeDrawingMode(finalX: number, finalY: number) {
+    state.isDrawing = false;
+    let newShape: Shape | null = null;
+  
+    switch (modeRef.current) {
+      case "rect":
         newShape = {
           id: crypto.randomUUID(),
           type: "rectangle",
@@ -1004,7 +1067,8 @@ function captureSelectedAreaBlob(): Promise<Blob | null> {
           strokeColor: strokeColorRef.current,
           strokeWidth: strokeWidthRef.current,
         };
-      } else if (modeRef.current === "circle") {
+        break;
+      case "circle":
         const centerX = (state.startX + finalX) / 2;
         const centerY = (state.startY + finalY) / 2;
         newShape = {
@@ -1017,7 +1081,8 @@ function captureSelectedAreaBlob(): Promise<Blob | null> {
           strokeColor: strokeColorRef.current,
           strokeWidth: strokeWidthRef.current,
         };
-      } else if (modeRef.current === "line") {
+        break;
+      case "line":
         newShape = {
           id: crypto.randomUUID(),
           type: "line",
@@ -1028,12 +1093,12 @@ function captureSelectedAreaBlob(): Promise<Blob | null> {
           strokeColor: strokeColorRef.current,
           strokeWidth: strokeWidthRef.current,
         };
-      } else if (modeRef.current === "triangle") {
+        break;
+      case "triangle":
         const dx = finalX - state.startX;
         const dy = finalY - state.startY;
         const midX = (state.startX + finalX) / 2;
         const midY = (state.startY + finalY) / 2;
-        // Corrected triangle third point calculation for more general triangle
         const thirdX = midX - dy * (Math.sqrt(3) / 2);
         const thirdY = midY + dx * (Math.sqrt(3) / 2);
         newShape = {
@@ -1048,7 +1113,8 @@ function captureSelectedAreaBlob(): Promise<Blob | null> {
           strokeColor: strokeColorRef.current,
           strokeWidth: strokeWidthRef.current,
         };
-      } else if (modeRef.current === "arrow") {
+        break;
+      case "arrow":
         newShape = {
           id: crypto.randomUUID(),
           type: "arrow",
@@ -1059,71 +1125,68 @@ function captureSelectedAreaBlob(): Promise<Blob | null> {
           strokeColor: strokeColorRef.current,
           strokeWidth: strokeWidthRef.current,
         };
-      }
-      if (newShape) {
-        state.shapes.push(newShape);
-        sendShapeMessage(newShape);
-      }
-      state.currentX = undefined;
-      state.currentY = undefined;
-      scheduleRender();
-      return;
+        break;
     }
-    if (e.button === 2 && state.isPanning) {
-      state.isPanning = false;
+  
+    if (newShape) {
+      state.shapes.push(newShape);
+      sendShapeMessage(newShape);
     }
-
-    if (modeRef.current === "select" && state.isMarqueeSelecting) {
-      state.isMarqueeSelecting = false;
-      state.marqueeStartX = 0; // Reset
-      state.marqueeStartY = 0; // Reset
-      state.marqueeCurrentX = 0; // Reset
-      state.marqueeCurrentY = 0; // Reset
-
-      const rectX = Math.min(state.marqueeStartX, worldX);
-      const rectY = Math.min(state.marqueeStartY, worldY);
-      const rectWidth = Math.abs(worldX - state.marqueeStartX);
-      const rectHeight = Math.abs(worldY - state.marqueeStartY);
-
-      const marqueeBounds = {
-        x: rectX,
-        y: rectY,
-        width: rectWidth,
-        height: rectHeight,
-      };
-
-      const isCtrlOrCmdPressed = e.ctrlKey || e.metaKey;
-
-      // Clear existing selections IF Ctrl/Cmd was NOT pressed
-      if (!isCtrlOrCmdPressed) {
-        state.selectedShapeIds = [];
-      }
-
-      // Add shapes that intersect with the marquee selection
-      state.shapes.forEach((shape) => {
-        const shapeBounds = getShapeBounds(ctx, shape);
-        if (shapeBounds) {
-          // Check for intersection between marqueeBounds and shapeBounds
-          // (x1, y1, w1, h1) and (x2, y2, w2, h2) intersect if:
-          // x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2
-          if (
-            marqueeBounds.x < shapeBounds.x + shapeBounds.width &&
-            marqueeBounds.x + marqueeBounds.width > shapeBounds.x &&
-            marqueeBounds.y < shapeBounds.y + shapeBounds.height &&
-            marqueeBounds.y + marqueeBounds.height > shapeBounds.y
-          ) {
-            // Only add if not already selected (important for Ctrl/Cmd mode)
-            if (!state.selectedShapeIds.includes(shape.id)) {
-              state.selectedShapeIds.push(shape.id);
-            }
+    state.currentX = undefined;
+    state.currentY = undefined;
+    scheduleRender();
+  }
+  
+  // Helper for ending marquee selection
+  function endMarqueeSelection(worldX: number, worldY: number, isCtrlOrCmdPressed: boolean) {
+    if(!ctx)return;
+    state.isMarqueeSelecting = false;
+  
+    const rectX = Math.min(state.marqueeStartX, worldX);
+    const rectY = Math.min(state.marqueeStartY, worldY);
+    const rectWidth = Math.abs(worldX - state.marqueeStartX);
+    const rectHeight = Math.abs(worldY - state.marqueeStartY);
+  
+    const marqueeBounds = {
+      x: rectX,
+      y: rectY,
+      width: rectWidth,
+      height: rectHeight,
+    };
+  
+    // Clear existing selections IF Ctrl/Cmd was NOT pressed (for new marquee selection)
+    if (!isCtrlOrCmdPressed) {
+      state.selectedShapeIds = [];
+    }
+  
+    // Add shapes that intersect with the marquee selection
+    state.shapes.forEach((shape) => {
+      const shapeBounds = getShapeBounds(ctx,shape);
+      if (shapeBounds) {
+        // Check for intersection between marqueeBounds and shapeBounds
+        if (
+          marqueeBounds.x < shapeBounds.x + shapeBounds.width &&
+          marqueeBounds.x + marqueeBounds.width > shapeBounds.x &&
+          marqueeBounds.y < shapeBounds.y + shapeBounds.height &&
+          marqueeBounds.y + marqueeBounds.height > shapeBounds.y
+        ) {
+          // Only add if not already selected (important for Ctrl/Cmd mode)
+          if (!state.selectedShapeIds.includes(shape.id)) {
+            state.selectedShapeIds.push(shape.id);
           }
         }
-      });
-      scheduleRender(); // Rerender to show new selections
-      return; // Important: ensure no other mouse up logic runs
-    }
+      }
+    });
+  
+    // Reset marquee coordinates
+    state.marqueeStartX = 0;
+    state.marqueeStartY = 0;
+    state.marqueeCurrentX = 0;
+    state.marqueeCurrentY = 0;
+  
+    scheduleRender(); // Rerender to show new selections
   }
-
+  
   // Wheel (zoom) handler.
   function handleWheel(e: WheelEvent) {
     e.preventDefault();
