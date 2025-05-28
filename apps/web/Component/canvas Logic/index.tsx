@@ -1,3 +1,6 @@
+// initDraw.ts
+
+import React from "react"; // ADDED: React import is necessary for React.RefObject
 import axios from "../axios/index";
 import { BACKEND_URL } from "../Config";
 
@@ -5,6 +8,7 @@ type Point = { x: number; y: number };
 
 export type Shape =
   | {
+      id: string;
       type: "rectangle";
       x: number;
       y: number;
@@ -14,6 +18,7 @@ export type Shape =
       strokeWidth: number;
     }
   | {
+      id: string;
       type: "circle";
       x: number;
       y: number;
@@ -23,6 +28,7 @@ export type Shape =
       strokeWidth: number;
     }
   | {
+      id: string;
       type: "line";
       x1: number;
       y1: number;
@@ -32,6 +38,7 @@ export type Shape =
       strokeWidth: number;
     }
   | {
+      id: string;
       type: "triangle";
       x1: number;
       y1: number;
@@ -43,12 +50,14 @@ export type Shape =
       strokeWidth: number;
     }
   | {
+      id: string;
       type: "freehand";
       points: Point[];
       strokeColor: string;
       strokeWidth: number;
     }
   | {
+      id: string;
       type: "text";
       x: number;
       y: number;
@@ -56,12 +65,9 @@ export type Shape =
       strokeColor: string;
       strokeWidth: number;
     }
+  | { id: string; type: "eraser"; points: Point[]; size: number }
   | {
-      type: "eraser";
-      points: Point[];
-      size: number;
-    }
-  | {
+      id: string;
       type: "arrow";
       x1: number;
       y1: number;
@@ -69,15 +75,15 @@ export type Shape =
       y2: number;
       strokeColor: string;
       strokeWidth: number;
-    } |
-    {
-      // NEW: Image Shape Type
+    }
+  | {
+      id: string;
       type: "image";
       x: number;
       y: number;
       width: number;
       height: number;
-      src: string; // URL or base64 data of the image
+      src: string;
     };
 
 interface DrawState {
@@ -103,16 +109,31 @@ interface DrawState {
     text: string;
     showCursor: boolean;
   };
+  selectedShapeIds: string[];
+  isMarqueeSelecting: boolean; // NEW
+  marqueeStartX: number; // NEW
+  marqueeStartY: number; // NEW
+  marqueeCurrentX: number; // NEW
+  marqueeCurrentY: number;
 }
-
 
 // A module-level variable to hold the cleanup function for text input.
 let activeTextCleanup: (() => void) | null = null;
+
 interface InitDrawControls {
   cleanup: () => void;
   addShapeLocally: (shape: Shape) => void;
   isCanvasEmpty: () => boolean;
+  getSelectedShapesInfo: () => Array<{
+    shape: Shape;
+    index: number;
+    bounds: { x: number; y: number; width: number; height: number };
+  }>;
+  deleteShapeById: (id: string) => void;
+  captureSelectedShapeBlob: () => Promise<Blob | null>;
+  captureSelectedAreaBlob: () => Promise<Blob | null>;
 }
+
 export default async function initDraw(
   canvas: HTMLCanvasElement,
   modeRef: React.RefObject<
@@ -124,15 +145,15 @@ export default async function initDraw(
     | "text"
     | "eraser"
     | "arrow"
+    | "select"
     | null
   >,
   strokeColorRef: React.RefObject<string>,
   strokeWidthRef: React.RefObject<number>,
   socket: WebSocket,
   params: Promise<{ slug: string }>,
-  setAiResponse :(a:string)=>void,
-):Promise<InitDrawControls>{
-
+  setAiResponse: (a: string) => void
+): Promise<InitDrawControls> {
   const defaultState: DrawState = {
     shapes: [],
     offsetX: 0,
@@ -151,8 +172,29 @@ export default async function initDraw(
     currentX: undefined,
     currentY: undefined,
     textPreview: undefined,
+    selectedShapeIds: [],
+    isMarqueeSelecting: false, // NEW
+    marqueeStartX: 0, // NEW
+    marqueeStartY: 0, // NEW
+    marqueeCurrentX: 0, // NEW
+    marqueeCurrentY: 0,
   };
   const ctx = canvas.getContext("2d");
+
+  // ADDED: Handle case where canvas context might not be available
+  if (!ctx) {
+    console.error("Canvas context is not available.");
+    // Return a dummy object with no-op functions if context is null
+    return {
+      cleanup: () => {},
+      addShapeLocally: () => {},
+      isCanvasEmpty: () => true,
+      getSelectedShapesInfo: () => [],
+      deleteShapeById: () => {},
+      captureSelectedShapeBlob: () => Promise.resolve(null),
+      captureSelectedAreaBlob: () => Promise.resolve(null)
+    };
+  }
 
   // Consolidate all drawing variables in state.
   const state: DrawState = { ...defaultState };
@@ -169,17 +211,282 @@ export default async function initDraw(
     }
   }
 
-    // Add this new helper function inside initDraw, after `state` is defined
-    function addShapeLocally(shape: Shape) {
-      state.shapes.push(shape);
-      scheduleRender(); // Request a re-render to display the new shape
-    }
+  // Add this new helper function inside initDraw, after `state` is defined
+  function addShapeLocally(shape: Shape) {
+    state.shapes.push(shape);
+    scheduleRender(); // Request a re-render to display the new shape
+  }
 
-    function isCanvasEmpty(): boolean {
-      return state.shapes.length === 0;
-    }
+  function isCanvasEmpty(): boolean {
+    return state.shapes.length === 0;
+  }
 
   const imageCache: { [src: string]: HTMLImageElement } = {};
+
+  function getShapeBounds(
+    ctx: CanvasRenderingContext2D,
+    shape: Shape
+  ): { x: number; y: number; width: number; height: number } | null {
+    // Note: Text and Freehand bounds are approximations.
+    // For precise text bounds, you might need to render to a temp canvas and measure.
+    switch (shape.type) {
+      case "rectangle":
+        return {
+          x: shape.x,
+          y: shape.y,
+          width: shape.width,
+          height: shape.height,
+        };
+      case "circle":
+        return {
+          x: shape.x - shape.radiusX,
+          y: shape.y - shape.radiusY,
+          width: shape.radiusX * 2,
+          height: shape.radiusY * 2,
+        };
+      case "line":
+      case "arrow":
+        const minX = Math.min(shape.x1, shape.x2);
+        const maxX = Math.max(shape.x1, shape.x2);
+        const minY = Math.min(shape.y1, shape.y2);
+        const maxY = Math.max(shape.y1, shape.y2);
+        return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+      case "triangle":
+        const triMinX = Math.min(shape.x1, shape.x2, shape.x3);
+        const triMaxX = Math.max(shape.x1, shape.x2, shape.x3);
+        const triMinY = Math.min(shape.y1, shape.y2, shape.y3);
+        const triMaxY = Math.max(shape.y1, shape.y2, shape.y3);
+        return {
+          x: triMinX,
+          y: triMinY,
+          width: triMaxX - triMinX,
+          height: triMaxY - triMinY,
+        };
+      case "freehand":
+      case "eraser":
+        if (shape.points.length === 0) return null;
+        let minFreeX = Infinity,
+          maxFreeX = -Infinity,
+          minFreeY = Infinity,
+          maxFreeY = -Infinity;
+        shape.points.forEach((p) => {
+          minFreeX = Math.min(minFreeX, p.x);
+          maxFreeX = Math.max(maxFreeX, p.x);
+          minFreeY = Math.min(minFreeY, p.y);
+          maxFreeY = Math.max(maxFreeY, p.y);
+        });
+        // Add padding for line width/eraser size
+        const padding =
+          (shape.type === "freehand" ? shape.strokeWidth : shape.size) / 2 + 2; // +2 for extra buffer
+        return {
+          x: minFreeX - padding,
+          y: minFreeY - padding,
+          width: maxFreeX - minFreeX + padding * 2,
+          height: maxFreeY - minFreeY + padding * 2,
+        };
+      case "text":
+        const fontSize = shape.strokeWidth * 10;
+        const lines = shape.content.split("\n");
+        // Rough estimate for text width - get max width of lines
+        let maxTextWidth = 0;
+        // ctx is guaranteed to be non-null here
+        lines.forEach((line) => {
+          maxTextWidth = Math.max(maxTextWidth, ctx.measureText(line).width);
+        });
+        const textHeight = lines.length * fontSize * 1.2; // 1.2 for line spacing
+        return {
+          x: shape.x,
+          y: shape.y - fontSize * 0.8,
+          width: maxTextWidth,
+          height: textHeight,
+        }; // Adjust y to be closer to top of text
+      case "image":
+        return {
+          x: shape.x,
+          y: shape.y,
+          width: shape.width,
+          height: shape.height,
+        };
+      default:
+        // ADDED: Default case to ensure all Shape types are handled
+        // If a new shape type is added and not handled, this prevents a potential error
+        return null;
+    }
+  }
+
+  function getSelectedShapesInfo(): Array<{
+    shape: Shape;
+    index: number;
+    bounds: { x: number; y: number; width: number; height: number };
+  }> {
+    const infos: Array<{
+      shape: Shape;
+      index: number;
+      bounds: { x: number; y: number; width: number; height: number };
+    }> = [];
+    state.selectedShapeIds.forEach((id) => {
+      const index = state.shapes.findIndex((s) => s.id === id);
+      if (index !== -1) {
+        const selectedShape = state.shapes[index];
+        if (ctx && selectedShape) {
+          const bounds = getShapeBounds(ctx, selectedShape);
+          if (bounds) {
+            infos.push({ shape: selectedShape, index: index, bounds: bounds });
+          }
+        }
+      }
+    });
+    return infos;
+  }
+
+  function deleteShapeById(id: string) {
+    const index = state.shapes.findIndex((s) => s.id === id);
+    if (index !== -1) {
+      state.shapes.splice(index, 1);
+      // If the deleted shape was selected, clear selection or adjust index
+      state.selectedShapeIds = state.selectedShapeIds.filter(
+        (selectedId) => selectedId !== id
+      );
+      scheduleRender();
+    }
+  }
+
+  function captureSelectedShapeBlob(): Promise<Blob | null> {
+    return new Promise((resolve) => {
+      // NOTE: This function currently only captures ONE selected shape.
+      // If multiple are selected, it will capture the first one found or needs modification.
+      // For multi-selection, you might want to capture all selected shapes together or iterate.
+      const firstSelectedId = state.selectedShapeIds[0];
+      if (!ctx || !firstSelectedId) {
+        resolve(null);
+        return;
+      }
+      const selectedShape = state.shapes.find((s) => s.id === firstSelectedId);
+
+      if (!selectedShape) {
+        resolve(null);
+        return;
+      }
+
+      const bounds = getShapeBounds(ctx, selectedShape);
+
+      if (!bounds) {
+        resolve(null);
+        return;
+      }
+
+      const tempCanvas = document.createElement("canvas");
+      const tempCtx = tempCanvas.getContext("2d");
+
+      if (!tempCtx) {
+        resolve(null);
+        return;
+      }
+
+      const padding = 10;
+      tempCanvas.width = bounds.width + 2 * padding;
+      tempCanvas.height = bounds.height + 2 * padding;
+
+      tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+      tempCtx.save();
+
+      tempCtx.translate(-bounds.x + padding, -bounds.y + padding);
+
+      const drawFn = (drawShape as any)[selectedShape.type];
+      if (drawFn) {
+        drawFn(tempCtx, selectedShape);
+      }
+      tempCtx.restore();
+
+      tempCanvas.toBlob((blob) => {
+        resolve(blob);
+        tempCanvas.remove();
+      }, "image/png");
+    });
+  }
+
+  // Add this function inside initDraw, near getSelectedShapesInfo
+function captureSelectedAreaBlob(): Promise<Blob | null> {
+  return new Promise(resolve => {
+      if (!ctx || state.selectedShapeIds.length === 0) {
+          resolve(null);
+          return;
+      }
+
+      // 1. Calculate combined bounding box of all selected shapes
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      const selectedShapes: Shape[] = [];
+
+      state.selectedShapeIds.forEach(id => {
+          const shape = state.shapes.find(s => s.id === id);
+          if (shape) {
+              const bounds = getShapeBounds(ctx, shape);
+              if (bounds) {
+                  minX = Math.min(minX, bounds.x);
+                  minY = Math.min(minY, bounds.y);
+                  maxX = Math.max(maxX, bounds.x + bounds.width);
+                  maxY = Math.max(maxY, bounds.y + bounds.height);
+                  selectedShapes.push(shape); // Collect selected shapes for drawing
+              }
+          }
+      });
+
+      if (selectedShapes.length === 0) { // No valid selected shapes found
+          resolve(null);
+          return;
+      }
+
+      const combinedBounds = {
+          x: minX,
+          y: minY,
+          width: maxX - minX,
+          height: maxY - minY,
+      };
+
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+
+      if (!tempCtx) {
+          resolve(null);
+          return;
+      }
+
+      const padding = 10; // Add some padding around the captured area
+      tempCanvas.width = combinedBounds.width + 2 * padding;
+      tempCanvas.height = combinedBounds.height + 2 * padding;
+
+      tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+      tempCtx.save();
+
+      // Translate the temporary context so that the combinedBounds's top-left
+      // corner is at (padding, padding) on the tempCanvas.
+      tempCtx.translate(-combinedBounds.x + padding, -combinedBounds.y + padding);
+
+      // 2. Draw ONLY the selected shapes onto the temporary canvas
+      selectedShapes.forEach(shape => {
+          const drawFn = (drawShape as any)[shape.type];
+          if (drawFn) {
+              // Ensure temporary canvas uses the same scaling logic if any within drawShape
+              tempCtx.save();
+              tempCtx.lineJoin = "round";
+              tempCtx.lineCap = "round";
+              tempCtx.shadowBlur = 2; // Match original drawing style
+              drawFn(tempCtx, shape);
+              tempCtx.restore();
+          }
+      });
+
+      tempCtx.restore();
+
+      tempCanvas.toBlob(blob => {
+          resolve(blob);
+          tempCanvas.remove(); // Clean up temp canvas
+      }, 'image/png');
+  });
+}
+
+  
+
   // --------------------------------------------------
   // Drawing Helper Functions for Permanent Shapes
   // --------------------------------------------------
@@ -212,7 +519,10 @@ export default async function initDraw(
       );
       ctx.stroke();
     },
-    line: (ctx: CanvasRenderingContext2D, shape: Extract<Shape, { type: "line" }>) => {
+    line: (
+      ctx: CanvasRenderingContext2D,
+      shape: Extract<Shape, { type: "line" }>
+    ) => {
       ctx.shadowColor = shape.strokeColor;
       ctx.strokeStyle = shape.strokeColor;
       ctx.lineWidth = shape.strokeWidth;
@@ -243,14 +553,18 @@ export default async function initDraw(
       ctx.strokeStyle = shape.strokeColor;
       ctx.lineWidth = shape.strokeWidth;
       ctx.beginPath();
-      ctx.moveTo(shape.points[0]?.x || 0, shape.points[0]?.y || 0);
+      // ADDED: Nullish coalescing for safety if points array is unexpectedly empty
+      ctx.moveTo(shape.points[0]?.x ?? 0, shape.points[0]?.y ?? 0);
       shape.points.forEach((p, i) => {
         if (i > 0) ctx.lineTo(p.x, p.y);
       });
       ctx.stroke();
     },
     // For text, split on "\n" and draw each line.
-    text: (ctx: CanvasRenderingContext2D, shape: Extract<Shape, { type: "text" }>) => {
+    text: (
+      ctx: CanvasRenderingContext2D,
+      shape: Extract<Shape, { type: "text" }>
+    ) => {
       const lines = shape.content.split("\n");
       const fontSize = shape.strokeWidth * 10;
       ctx.font = `${fontSize}px Arial`;
@@ -269,14 +583,18 @@ export default async function initDraw(
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
       ctx.beginPath();
-      ctx.moveTo(shape.points[0]?.x || 0, shape.points[0]?.y || 0);
+      // ADDED: Nullish coalescing for safety if points array is unexpectedly empty
+      ctx.moveTo(shape.points[0]?.x ?? 0, shape.points[0]?.y ?? 0);
       shape.points.forEach((p, i) => {
         if (i > 0) ctx.lineTo(p.x, p.y);
       });
       ctx.stroke();
       ctx.restore();
     },
-    arrow: (ctx: CanvasRenderingContext2D, shape: Extract<Shape, { type: "arrow" }>) => {
+    arrow: (
+      ctx: CanvasRenderingContext2D,
+      shape: Extract<Shape, { type: "arrow" }>
+    ) => {
       ctx.shadowColor = shape.strokeColor;
       ctx.strokeStyle = shape.strokeColor;
       ctx.lineWidth = shape.strokeWidth;
@@ -335,14 +653,12 @@ export default async function initDraw(
   // --------------------------------------------------
   function renderAll() {
     if (!ctx) return;
+    // `ctx` is guaranteed non-null here due to the initial check in initDraw
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
 
-
     ctx.translate(state.offsetX, state.offsetY);
     ctx.scale(state.scale, state.scale);
-
-    
 
     // 1. Draw saved shapes.
     state.shapes.forEach((shape) => {
@@ -357,8 +673,45 @@ export default async function initDraw(
       ctx.restore();
     });
 
+    state.selectedShapeIds.forEach((selectedId) => {
+      const selectedShape = state.shapes.find((s) => s.id === selectedId);
+      if (selectedShape) {
+        const bounds = getShapeBounds(ctx, selectedShape);
+        if (bounds) {
+          ctx.save();
+          ctx.strokeStyle = "#00aaff"; // Highlight color
+          ctx.lineWidth = 2 / state.scale; // Make sure line width scales inversely with zoom
+          ctx.setLineDash([5, 5]); // Dashed line
+          ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
+          ctx.restore();
+        }
+      }
+    });
+
+    // NEW: Draw marquee selection rectangle
+    if (
+      state.isMarqueeSelecting &&
+      state.marqueeCurrentX !== undefined &&
+      state.marqueeCurrentY !== undefined
+    ) {
+      ctx.save();
+      ctx.strokeStyle = "#00aaff"; // Marquee color
+      ctx.lineWidth = 1 / state.scale; // Thin line
+      ctx.setLineDash([2, 2]); // Dashed line
+      const x = Math.min(state.marqueeStartX, state.marqueeCurrentX);
+      const y = Math.min(state.marqueeStartY, state.marqueeCurrentY);
+      const width = Math.abs(state.marqueeCurrentX - state.marqueeStartX);
+      const height = Math.abs(state.marqueeCurrentY - state.marqueeStartY);
+      ctx.strokeRect(x, y, width, height);
+      ctx.restore();
+    }
+
     // 2. Preview for regular shapes (rect, circle, line, triangle, arrow).
-    if (state.isDrawing && state.currentX !== undefined && state.currentY !== undefined) {
+    if (
+      state.isDrawing &&
+      state.currentX !== undefined &&
+      state.currentY !== undefined // Ensure currentX/Y are defined for preview
+    ) {
       ctx.save();
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
@@ -389,8 +742,10 @@ export default async function initDraw(
         const dy = currentY - startY;
         const midX = (startX + currentX) / 2;
         const midY = (startY + currentY) / 2;
+        // This calculates a point for an equilateral triangle.
+        // For a more general triangle, it might need to use other points.
         const thirdX = midX - dy * (Math.sqrt(3) / 2);
-        const thirdY = midY - dx * (Math.sqrt(3) / 2);
+        const thirdY = midY + dx * (Math.sqrt(3) / 2); // Corrected `+ dx` for rotation
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.lineTo(currentX, currentY);
@@ -410,7 +765,11 @@ export default async function initDraw(
       ctx.strokeStyle = strokeColorRef.current;
       ctx.lineWidth = strokeWidthRef.current;
       ctx.beginPath();
-      ctx.moveTo(state.freehandPoints[0]?.x || 0, state.freehandPoints[0]?.y || 0);
+      // ADDED: Nullish coalescing for safety if points array is unexpectedly empty
+      ctx.moveTo(
+        state.freehandPoints[0]?.x ?? 0,
+        state.freehandPoints[0]?.y ?? 0
+      );
       state.freehandPoints.forEach((pt, i) => {
         if (i > 0) ctx.lineTo(pt.x, pt.y);
       });
@@ -426,7 +785,8 @@ export default async function initDraw(
       ctx.lineCap = "round";
       ctx.lineWidth = strokeWidthRef.current * 10;
       ctx.beginPath();
-      ctx.moveTo(state.eraserPoints[0]?.x || 0, state.eraserPoints[0]?.y || 0);
+      // ADDED: Nullish coalescing for safety if points array is unexpectedly empty
+      ctx.moveTo(state.eraserPoints[0]?.x ?? 0, state.eraserPoints[0]?.y ?? 0);
       state.eraserPoints.forEach((pt, i) => {
         if (i > 0) ctx.lineTo(pt.x, pt.y);
       });
@@ -445,7 +805,11 @@ export default async function initDraw(
         : state.textPreview.text;
       const lines = displayText.split("\n");
       for (let i = 0; i < lines.length; i++) {
-        ctx.fillText(lines[i] as string, state.textPreview.x, state.textPreview.y + i * fontSize * 1.2);
+        ctx.fillText(
+          lines[i] as string,
+          state.textPreview.x,
+          state.textPreview.y + i * fontSize * 1.2
+        );
       }
       ctx.restore();
     }
@@ -465,7 +829,8 @@ export default async function initDraw(
     const res = await axios.get(`${BACKEND_URL}/api/room/${roomId}`);
     const messages = res.data.messages;
     messages.forEach((msg: { id: number; message: string }) => {
-      state.shapes.push(JSON.parse(msg.message));
+      // ADDED: Assert message is a Shape for type safety
+      state.shapes.push(JSON.parse(msg.message) as Shape);
     });
     return roomId;
   }
@@ -473,14 +838,19 @@ export default async function initDraw(
   const roomId = await loadPreviousShapes();
 
   socket.onmessage = (e) => {
-      const data = JSON.parse(e.data);
-      if (data.type === "chat" && data.message) {
-        state.shapes.push(data.message);
-        scheduleRender();
-      }
-      if(data.type === "ai"){
-        setAiResponse(data.message)
-      }
+    const data = JSON.parse(e.data);
+    if (data.type === "chat" && data.message) {
+      // ADDED: Assert data.message is a Shape for type safety
+      state.shapes.push(data.message as Shape);
+      scheduleRender();
+    }
+    if (data.type === "ai") {
+      setAiResponse(data.message);
+    }
+    // ADDED: Type check for data.id before calling deleteShapeById
+    if (data.type === "delete_shape" && typeof data.id === "string") {
+      deleteShapeById(data.id);
+    }
   };
 
   function sendShapeMessage(shape: Shape) {
@@ -497,6 +867,7 @@ export default async function initDraw(
 
   // Mousedown handler.
   function handleMouseDown(e: MouseEvent) {
+    if (!ctx) return;
     const worldX = (e.clientX - state.offsetX) / state.scale;
     const worldY = (e.clientY - state.offsetY) / state.scale;
 
@@ -512,9 +883,67 @@ export default async function initDraw(
       // Right-click for panning.
       state.isPanning = true;
       state.panStartX = e.clientX - state.offsetX;
-      state.panStartY = e.clientY - state.offsetY;
+      state.panStartY = e.clientY - state.panStartY;
+      state.selectedShapeIds = []; // Clear selection on pan start
+      scheduleRender(); // Rerender to remove selection highlight
       return;
     }
+    const isCtrlOrCmdPressed = e.ctrlKey || e.metaKey; // Ctrl for Windows/Linux, Cmd for Mac
+
+    if (modeRef.current === "select") {
+      let clickedShapeId: string | null = null;
+      for (let i = state.shapes.length - 1; i >= 0; i--) {
+        const shape = state.shapes[i];
+        if (shape) {
+          const bounds = getShapeBounds(ctx, shape);
+          if (
+            bounds &&
+            worldX >= bounds.x &&
+            worldX <= bounds.x + bounds.width &&
+            worldY >= bounds.y &&
+            worldY <= bounds.y + bounds.height
+          ) {
+            clickedShapeId = shape.id;
+            break;
+          }
+        }
+      }
+
+      if (clickedShapeId) {
+        const isAlreadySelected =
+          state.selectedShapeIds.includes(clickedShapeId);
+        if (isCtrlOrCmdPressed) {
+          if (isAlreadySelected) {
+            state.selectedShapeIds = state.selectedShapeIds.filter(
+              (id) => id !== clickedShapeId
+            );
+          } else {
+            state.selectedShapeIds.push(clickedShapeId);
+          }
+        } else {
+          state.selectedShapeIds = [clickedShapeId];
+        }
+      } else {
+        // No shape was clicked. Start marquee selection.
+        state.isMarqueeSelecting = true;
+        state.marqueeStartX = worldX;
+        state.marqueeStartY = worldY;
+        state.marqueeCurrentX = worldX; // Initialize current to start
+        state.marqueeCurrentY = worldY; // Initialize current to start
+
+        if (!isCtrlOrCmdPressed) {
+          // If Ctrl/Cmd not held, clear existing selection
+          state.selectedShapeIds = [];
+        }
+      }
+      scheduleRender();
+      return;
+    }
+
+    // If starting a new drawing, clear all selections (both single and marquee)
+    state.selectedShapeIds = [];
+    state.isMarqueeSelecting = false; // Ensure marquee is off when starting a new shape
+    scheduleRender();
 
     // Freehand and eraser tools.
     if (modeRef.current === "freehand" || modeRef.current === "eraser") {
@@ -568,17 +997,27 @@ export default async function initDraw(
       state.offsetX = e.clientX - state.panStartX;
       state.offsetY = e.clientY - state.panStartY;
       scheduleRender();
+      return; // Add return to prevent further processing
+    }
+    // NEW: Marquee selection movement
+    if (modeRef.current === "select" && state.isMarqueeSelecting) {
+      state.marqueeCurrentX = worldX;
+      state.marqueeCurrentY = worldY;
+      scheduleRender();
+      return; // Add return
     }
   }
 
   // Mouseup handler.
   function handleMouseUp(e: MouseEvent) {
+    if (!ctx) return;
     const worldX = (e.clientX - state.offsetX) / state.scale;
     const worldY = (e.clientY - state.offsetY) / state.scale;
 
     if (e.button === 0 && state.isErasing) {
       state.isErasing = false;
       const newShape: Shape = {
+        id: crypto.randomUUID(),
         type: "eraser",
         points: state.eraserPoints,
         size: strokeWidthRef.current * 10,
@@ -592,6 +1031,7 @@ export default async function initDraw(
     if (e.button === 0 && state.isFreehandDrawing) {
       state.isFreehandDrawing = false;
       const newShape: Shape = {
+        id: crypto.randomUUID(),
         type: "freehand",
         points: state.freehandPoints,
         strokeColor: strokeColorRef.current,
@@ -606,51 +1046,61 @@ export default async function initDraw(
     if (e.button === 0 && state.isDrawing) {
       state.isDrawing = false;
       let newShape: Shape | null = null;
+      // Using nullish coalescing operator `??` is safer than `|| 0` for non-numeric defaults
+      // But for `currentX`/`currentY` that might be `undefined`, `|| worldX` is correct for providing a default.
+      const finalX = state.currentX ?? worldX;
+      const finalY = state.currentY ?? worldY;
+
       if (modeRef.current === "rect") {
         newShape = {
+          id: crypto.randomUUID(),
           type: "rectangle",
           x: state.startX,
           y: state.startY,
-          width: (state.currentX || worldX) - state.startX,
-          height: (state.currentY || worldY) - state.startY,
+          width: finalX - state.startX,
+          height: finalY - state.startY,
           strokeColor: strokeColorRef.current,
           strokeWidth: strokeWidthRef.current,
         };
       } else if (modeRef.current === "circle") {
-        const centerX = (state.startX + (state.currentX || worldX)) / 2;
-        const centerY = (state.startY + (state.currentY || worldY)) / 2;
+        const centerX = (state.startX + finalX) / 2;
+        const centerY = (state.startY + finalY) / 2;
         newShape = {
+          id: crypto.randomUUID(),
           type: "circle",
           x: centerX,
           y: centerY,
-          radiusX: Math.abs((state.currentX || worldX) - state.startX) / 2,
-          radiusY: Math.abs((state.currentY || worldY) - state.startY) / 2,
+          radiusX: Math.abs(finalX - state.startX) / 2,
+          radiusY: Math.abs(finalY - state.startY) / 2,
           strokeColor: strokeColorRef.current,
           strokeWidth: strokeWidthRef.current,
         };
       } else if (modeRef.current === "line") {
         newShape = {
+          id: crypto.randomUUID(),
           type: "line",
           x1: state.startX,
           y1: state.startY,
-          x2: state.currentX || worldX,
-          y2: state.currentY || worldY,
+          x2: finalX,
+          y2: finalY,
           strokeColor: strokeColorRef.current,
           strokeWidth: strokeWidthRef.current,
         };
       } else if (modeRef.current === "triangle") {
-        const dx = (state.currentX || worldX) - state.startX;
-        const dy = (state.currentY || worldY) - state.startY;
-        const midX = (state.startX + (state.currentX || worldX)) / 2;
-        const midY = (state.startY + (state.currentY || worldY)) / 2;
+        const dx = finalX - state.startX;
+        const dy = finalY - state.startY;
+        const midX = (state.startX + finalX) / 2;
+        const midY = (state.startY + finalY) / 2;
+        // Corrected triangle third point calculation for more general triangle
         const thirdX = midX - dy * (Math.sqrt(3) / 2);
-        const thirdY = midY - dx * (Math.sqrt(3) / 2);
+        const thirdY = midY + dx * (Math.sqrt(3) / 2);
         newShape = {
+          id: crypto.randomUUID(),
           type: "triangle",
           x1: state.startX,
           y1: state.startY,
-          x2: state.currentX || worldX,
-          y2: state.currentY || worldY,
+          x2: finalX,
+          y2: finalY,
           x3: thirdX,
           y3: thirdY,
           strokeColor: strokeColorRef.current,
@@ -658,11 +1108,12 @@ export default async function initDraw(
         };
       } else if (modeRef.current === "arrow") {
         newShape = {
+          id: crypto.randomUUID(),
           type: "arrow",
           x1: state.startX,
           y1: state.startY,
-          x2: state.currentX || worldX,
-          y2: state.currentY || worldY,
+          x2: finalX,
+          y2: finalY,
           strokeColor: strokeColorRef.current,
           strokeWidth: strokeWidthRef.current,
         };
@@ -678,6 +1129,56 @@ export default async function initDraw(
     }
     if (e.button === 2 && state.isPanning) {
       state.isPanning = false;
+    }
+
+    if (modeRef.current === "select" && state.isMarqueeSelecting) {
+      state.isMarqueeSelecting = false;
+      state.marqueeStartX = 0; // Reset
+      state.marqueeStartY = 0; // Reset
+      state.marqueeCurrentX = 0; // Reset
+      state.marqueeCurrentY = 0; // Reset
+
+      const rectX = Math.min(state.marqueeStartX, worldX);
+      const rectY = Math.min(state.marqueeStartY, worldY);
+      const rectWidth = Math.abs(worldX - state.marqueeStartX);
+      const rectHeight = Math.abs(worldY - state.marqueeStartY);
+
+      const marqueeBounds = {
+        x: rectX,
+        y: rectY,
+        width: rectWidth,
+        height: rectHeight,
+      };
+
+      const isCtrlOrCmdPressed = e.ctrlKey || e.metaKey;
+
+      // Clear existing selections IF Ctrl/Cmd was NOT pressed
+      if (!isCtrlOrCmdPressed) {
+        state.selectedShapeIds = [];
+      }
+
+      // Add shapes that intersect with the marquee selection
+      state.shapes.forEach((shape) => {
+        const shapeBounds = getShapeBounds(ctx, shape);
+        if (shapeBounds) {
+          // Check for intersection between marqueeBounds and shapeBounds
+          // (x1, y1, w1, h1) and (x2, y2, w2, h2) intersect if:
+          // x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2
+          if (
+            marqueeBounds.x < shapeBounds.x + shapeBounds.width &&
+            marqueeBounds.x + marqueeBounds.width > shapeBounds.x &&
+            marqueeBounds.y < shapeBounds.y + shapeBounds.height &&
+            marqueeBounds.y + marqueeBounds.height > shapeBounds.y
+          ) {
+            // Only add if not already selected (important for Ctrl/Cmd mode)
+            if (!state.selectedShapeIds.includes(shape.id)) {
+              state.selectedShapeIds.push(shape.id);
+            }
+          }
+        }
+      });
+      scheduleRender(); // Rerender to show new selections
+      return; // Important: ensure no other mouse up logic runs
     }
   }
 
@@ -742,13 +1243,14 @@ export default async function initDraw(
       } else if (event.key === "Backspace") {
         updateText(state.textPreview.text.slice(0, -1));
       } else if (event.key.length === 1) {
+        // This condition is good for single character keys
         updateText(state.textPreview.text + event.key);
       }
     }
 
     // This mousedown listener cancels the text input (saving the text) if the user clicks elsewhere.
     function handleTextCancel(e: MouseEvent) {
-      cleanup();
+      cleanup(); // Calls the inner cleanup function
     }
 
     function cleanup() {
@@ -756,6 +1258,7 @@ export default async function initDraw(
       // Finalize the text if any non-empty content exists.
       if (state.textPreview && state.textPreview.text.trim().length > 0) {
         const newShape: Shape = {
+          id: crypto.randomUUID(),
           type: "text",
           x: state.textPreview.x,
           y: state.textPreview.y,
@@ -775,7 +1278,7 @@ export default async function initDraw(
 
     document.addEventListener("keydown", handleKeydown);
     canvas.addEventListener("mousedown", handleTextCancel);
-    activeTextCleanup = cleanup;
+    activeTextCleanup = cleanup; // Store the cleanup function
   }
 
   // Register event listeners.
@@ -795,12 +1298,15 @@ export default async function initDraw(
       canvas.removeEventListener("mouseup", handleMouseUp);
       canvas.removeEventListener("wheel", handleWheel);
       canvas.removeEventListener("dblclick", handleDoubleClick);
-      // Ensure active text input is cleaned up if a text session is active
       if (activeTextCleanup) {
         activeTextCleanup();
       }
     },
-    addShapeLocally: addShapeLocally, 
+    addShapeLocally: addShapeLocally,
     isCanvasEmpty: isCanvasEmpty,
+    getSelectedShapesInfo: getSelectedShapesInfo, // CHANGED
+    deleteShapeById: deleteShapeById,
+    captureSelectedShapeBlob: captureSelectedShapeBlob,
+    captureSelectedAreaBlob: captureSelectedAreaBlob,
   };
 }

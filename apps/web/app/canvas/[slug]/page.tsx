@@ -17,6 +17,7 @@ import {
   LogOut,
   X,
   Play,
+  TextCursor,
 } from "lucide-react";
 import useSocket from "../../../Component/socket/useSocket";
 import axios from "axios";
@@ -34,6 +35,7 @@ type DrawingMode =
   | "text"
   | "eraser"
   | "arrow"
+  | "select"
   | null;
 
 interface Param {
@@ -141,74 +143,112 @@ const Page = ({ params }: Param) => {
   };
 
 
-  // Page.tsx (around line 88, inside handleImprove function)
+  const cleanupRef = useRef<{
+    cleanup: () => void;
+    addShapeLocally: (shape: Shape) => void;
+    isCanvasEmpty: () => boolean; 
+    getSelectedShapesInfo: () => Array<{ shape: Shape; index: number; bounds: { x: number; y: number; width: number; height: number } }>;
+    deleteShapeById: (id: string) => void;
+    captureSelectedShapeBlob: () => Promise<Blob | null>;
+    captureSelectedAreaBlob: () => Promise<Blob | null>;
+  } | undefined>(undefined);
 
-const handleImprove = () => {
-  const canvas = canvasRef.current;
-  if (!canvas) {
-    addNotification("error", "Canvas element not found."); // More specific error
-    return;
-  }
-
-  // Check if the canvas has any shapes using the exposed function
-  if (cleanupRef.current && cleanupRef.current.isCanvasEmpty()) {
-    addNotification("info", "Nothing on canvas to improve.");
-    return; // Exit the function early
-  }
-
-  setImprovingAi(true);
-
-  canvas.toBlob(async (blob) => {
-    // This `if (!blob)` check is still useful as a fallback for unexpected browser issues
-    // where `toBlob` might fail even if the canvas is not technically empty.
-    if (!blob) {
-      addNotification("error", "Failed to capture canvas content.");
-      setImprovingAi(false);
+ 
+  const handleImprove = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      addNotification("error", "Canvas element not found.");
       return;
     }
-
-    const formData = new FormData();
-    formData.append("image", blob, "canvas.png");
-
-    try {
-      const response = await axios.post(`${BACKEND_URL}/api/improve/ai`, formData, {
-        responseType: 'blob',
-      });
-
-      const imageBlob = response.data;
-      const url = URL.createObjectURL(imageBlob);
-
-      const newImageShape: Shape = {
-        type: "image",
-        x: 0, // Adjust position/size as needed
-        y: 0,
-        width: canvas.width,
-        height: canvas.height,
-        src: url,
-      };
-
-      // Ensure socket and roomId are available before sending
-      if (socket && roomId) {
-        socket.send(JSON.stringify({ type: "chat", roomId, message: newImageShape }));
-      } else {
-        console.warn("Socket or Room ID not available, image not sent to other clients.");
-      }
-
-
-      if (cleanupRef.current && cleanupRef.current.addShapeLocally) {
-        cleanupRef.current.addShapeLocally(newImageShape);
-      } else {
-        console.warn("initDraw controls not available, image not added locally immediately.");
-      }
-
-    } catch (error) {
-      console.error("Improve Error:", error);
-      addNotification("error", "Failed to fetch improved canvas.");
-    } finally {
-      setImprovingAi(false);
+  
+    if (!cleanupRef.current) {
+      addNotification("error", "Canvas drawing controls not initialized.");
+      return;
     }
-  }, "image/png");
-};
+  
+    const selectedShapesInfoArray = cleanupRef.current.getSelectedShapesInfo();
+  
+    if (selectedShapesInfoArray.length === 0) {
+      addNotification("info", "Please select shapes to improve."); // Updated message
+      return;
+    }
+  
+    setImprovingAi(true);
+  
+    // Call the new function to capture the combined area of all selected shapes
+    cleanupRef.current.captureSelectedAreaBlob().then(async (blob) => {
+      if (!blob) {
+        addNotification("error", "Failed to capture selected area content.");
+        setImprovingAi(false);
+        return;
+      }
+  
+      const formData = new FormData();
+      formData.append("image", blob, "canvas.png");
+  
+      try {
+        const response = await axios.post(`${BACKEND_URL}/api/improve/ai`, formData, {
+          responseType: 'blob',
+        });
+  
+        const imageBlob = response.data;
+        const url = URL.createObjectURL(imageBlob);
+  
+        // Calculate the combined bounds of the *original* selected shapes
+        // This logic needs to be repeated here to define the new image's position and size
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        selectedShapesInfoArray.forEach(info => {
+            minX = Math.min(minX, info.bounds.x);
+            minY = Math.min(minY, info.bounds.y);
+            maxX = Math.max(maxX, info.bounds.x + info.bounds.width);
+            maxY = Math.max(maxY, info.bounds.y + info.bounds.height);
+        });
+        const combinedBounds = {
+            x: minX,
+            y: minY,
+            width: maxX - minX,
+            height: maxY - minY,
+        };
+  
+        const newImageShape: Shape = {
+          id: crypto.randomUUID(),
+          type: "image",
+          x: combinedBounds.x, // Use combined bounds
+          y: combinedBounds.y, // Use combined bounds
+          width: combinedBounds.width, // Use combined bounds
+          height: combinedBounds.height, // Use combined bounds
+          src: url,
+        };
+  
+        // --- Crucial Replacement Logic for MULTIPLE SHAPES ---
+  
+        // 1. Delete ALL original selected shapes locally
+        selectedShapesInfoArray.forEach(info => {
+            cleanupRef.current!.deleteShapeById(info.shape.id);
+        });
+  
+        // 2. Add the new improved image shape locally
+        cleanupRef.current!.addShapeLocally(newImageShape);
+  
+        // 3. Send deletion and addition messages via socket for other clients and persistence
+        if (socket && roomId) {
+          selectedShapesInfoArray.forEach(info => {
+              socket.send(JSON.stringify({ type: "delete_shape", roomId, id: info.shape.id }));
+          });
+          socket.send(JSON.stringify({ type: "chat", roomId, message: newImageShape }));
+        } else {
+          console.warn("Socket or Room ID not available, replacement not synced to other clients.");
+        }
+  
+      } catch (error) {
+        console.error("Improve Error:", error);
+        addNotification("error", "Failed to fetch improved canvas.");
+      } finally {
+        setImprovingAi(false);
+      }
+    });
+  };
+
 
   useEffect(() => {
     strokeColorRef.current = strokeColor;
@@ -240,13 +280,6 @@ const handleImprove = () => {
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
-
-  
-  const cleanupRef = useRef<{
-    cleanup: () => void;
-    addShapeLocally: (shape: Shape) => void;
-    isCanvasEmpty: () => boolean; 
-  } | undefined>(undefined);
 
 
   // Initialize canvas (and attach event listeners) when dimensions are available.
@@ -458,6 +491,7 @@ const handleImprove = () => {
       {/* Drawing Mode Toolbar */}
       <div className="absolute z-40 top-4 left-1/2 transform -translate-x-1/2 flex items-center space-x-3 px-4 py-2 rounded-full bg-gray-900 border border-gray-700 shadow-md">
         {[
+          { name: "select", symbol: <TextCursor /> },
           { name: "rect", symbol: <RectangleHorizontal /> },
           { name: "circle", symbol: <Circle /> },
           { name: "line", symbol: <Minus /> },
