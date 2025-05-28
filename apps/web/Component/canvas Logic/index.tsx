@@ -3,7 +3,7 @@ import { BACKEND_URL } from "../Config";
 
 type Point = { x: number; y: number };
 
-type Shape =
+export type Shape =
   | {
       type: "rectangle";
       x: number;
@@ -69,6 +69,15 @@ type Shape =
       y2: number;
       strokeColor: string;
       strokeWidth: number;
+    } |
+    {
+      // NEW: Image Shape Type
+      type: "image";
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      src: string; // URL or base64 data of the image
     };
 
 interface DrawState {
@@ -99,7 +108,11 @@ interface DrawState {
 
 // A module-level variable to hold the cleanup function for text input.
 let activeTextCleanup: (() => void) | null = null;
-
+interface InitDrawControls {
+  cleanup: () => void;
+  addShapeLocally: (shape: Shape) => void;
+  isCanvasEmpty: () => boolean;
+}
 export default async function initDraw(
   canvas: HTMLCanvasElement,
   modeRef: React.RefObject<
@@ -117,8 +130,8 @@ export default async function initDraw(
   strokeWidthRef: React.RefObject<number>,
   socket: WebSocket,
   params: Promise<{ slug: string }>,
-  setAiResponse :(a:string)=>void
-): Promise<() => void> {
+  setAiResponse :(a:string)=>void,
+):Promise<InitDrawControls>{
 
   const defaultState: DrawState = {
     shapes: [],
@@ -156,6 +169,17 @@ export default async function initDraw(
     }
   }
 
+    // Add this new helper function inside initDraw, after `state` is defined
+    function addShapeLocally(shape: Shape) {
+      state.shapes.push(shape);
+      scheduleRender(); // Request a re-render to display the new shape
+    }
+
+    function isCanvasEmpty(): boolean {
+      return state.shapes.length === 0;
+    }
+
+  const imageCache: { [src: string]: HTMLImageElement } = {};
   // --------------------------------------------------
   // Drawing Helper Functions for Permanent Shapes
   // --------------------------------------------------
@@ -279,6 +303,31 @@ export default async function initDraw(
       ctx.fillStyle = shape.strokeColor;
       ctx.fill();
     },
+    image: (
+      ctx: CanvasRenderingContext2D,
+      shape: Extract<Shape, { type: "image" }>
+    ) => {
+      let img = imageCache[shape.src];
+      if (!img) {
+        img = new Image();
+        img.crossOrigin = "anonymous"; // Important for CORS if images are from external sources
+        img.onload = () => {
+          // Re-render only after image is loaded to display it
+          scheduleRender();
+        };
+        img.onerror = (err) => {
+          console.error("Failed to load image for drawing:", shape.src, err);
+          // You might want to draw a placeholder or log an error
+        };
+        img.src = shape.src;
+        imageCache[shape.src] = img; // Cache the image for future use
+      }
+
+      // Draw only if the image is loaded and ready
+      if (img.complete && img.naturalWidth !== 0) {
+        ctx.drawImage(img, shape.x, shape.y, shape.width, shape.height);
+      }
+    },
   };
 
   // --------------------------------------------------
@@ -288,8 +337,12 @@ export default async function initDraw(
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
+
+
     ctx.translate(state.offsetX, state.offsetY);
     ctx.scale(state.scale, state.scale);
+
+    
 
     // 1. Draw saved shapes.
     state.shapes.forEach((shape) => {
@@ -735,12 +788,19 @@ export default async function initDraw(
   // Initial render.
   scheduleRender();
 
-  return function cleanup() {
-    canvas.removeEventListener("mousedown", handleMouseDown);
-    canvas.removeEventListener("mousemove", handleMouseMove);
-    canvas.removeEventListener("mouseup", handleMouseUp);
-    canvas.removeEventListener("wheel", handleWheel);
-    canvas.removeEventListener("dblclick", handleDoubleClick);
-    // remove any additional event listeners you added
+  return {
+    cleanup: function cleanup() {
+      canvas.removeEventListener("mousedown", handleMouseDown);
+      canvas.removeEventListener("mousemove", handleMouseMove);
+      canvas.removeEventListener("mouseup", handleMouseUp);
+      canvas.removeEventListener("wheel", handleWheel);
+      canvas.removeEventListener("dblclick", handleDoubleClick);
+      // Ensure active text input is cleaned up if a text session is active
+      if (activeTextCleanup) {
+        activeTextCleanup();
+      }
+    },
+    addShapeLocally: addShapeLocally, 
+    isCanvasEmpty: isCanvasEmpty,
   };
 }

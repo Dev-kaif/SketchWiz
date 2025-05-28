@@ -7,8 +7,10 @@ import { JWT_SECRET } from "@repo/backend/config";
 import auth from "./auth.js";
 import { client } from "@repo/db/client";
 import multer from "multer";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI, Modality } from "@google/genai";
 import { GEMINI_API_KEY } from "@repo/backend/config";
+import * as fs from 'node:fs';
+import { any, string } from "zod";
 
 const app = express();
 app.use(express.json());
@@ -276,9 +278,10 @@ app.delete(
 
 const upload = multer();
 
+
+
 // Initialize the Gemini generative AI model with your API key
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY as string);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const genAI = new GoogleGenAI({ apiKey: GEMINI_API_KEY as string});
 
 interface GenerativePart {
   inlineData: {
@@ -301,10 +304,8 @@ function fileToGenerativePart(
 
 async function analyzeImage(
   imageBuffer: Buffer,
-  dictOfVars: Record<string, any>
 ): Promise<object[]> {
   // Convert the dictionary of variables to a string
-  const dict_of_vars_str = JSON.stringify(dictOfVars);
 
   // Build the prompt (mirroring your Python version) that includes the variables.
   const prompt =
@@ -343,7 +344,7 @@ async function analyzeImage(
     "   - If the image depicts a specific event or abstract scenario (e.g., an event description, social gathering, protest, or any scene conveying a situation), analyze and interpret the event.\\n" +
     "   - Provide a clear explanation of the event or scenario, and include actionable suggestions or next steps.\\n" +
     "   - Format your answer as a list containing a single dictionary with keys: 'expr' for your interpretation, 'result' for the summary or abstract concept, and 'suggestion' for your recommended next steps.\\n\\n" +
-    "Additional Guidelines:\\n" +
+    "RULES :\\n" +
     "   - Use extra backslashes for escape characters (e.g., \\f becomes \\\\f and \\n becomes \\\\n).\\n" +
     "   - Do NOT include any double quotes inside the string values. If the image content contains double quotes, either remove them or replace them with single quotes.\\n\\n" +
     "   - DO NOT USE BACKTICKS OR MARKDOWN FORMATTING in your output.\\n" +
@@ -360,8 +361,18 @@ async function analyzeImage(
     );
 
     // Send the prompt and image part to the Gemini model
-    const result = await model.generateContent([prompt, imagePart]);
-    const responseText: string = await result.response.text();
+    const result = await genAI.models.generateContent({
+      model: "gemini-2.0-flash",
+      config:{
+        systemInstruction:prompt
+      },
+      contents: imagePart
+    });
+  
+    const responseText: string = await result.text as string;
+
+    console.log(responseText);
+    
 
     // Clean up the response by removing markdown formatting and normalizing quotes
     const cleanedResponse = responseText
@@ -386,35 +397,166 @@ async function analyzeImage(
   }
 }
 
+
+
+
 /**
  * POST /analyze
  * Expects a multipart/form-data request with an "image" file and optionally a "dictOfVars" field (JSON string).
  * Returns the analysis result from the generative AI model.
  */
 app.post("/api/analyze/ai", upload.single("image"),async (req: Request, res: Response) => {
-    try {
-      // Ensure an image file was uploaded
-      if (!req.file) {
-        res.status(400).json({ error: "No image provided" });
-        return;
-      }
-
-      // Get the image buffer from the uploaded file.
-      const imageBuffer: Buffer = req.file.buffer;
-
-      // Optionally, retrieve additional parameters (as a JSON string) from the request body.
-      const dictOfVars: Record<string, any> = req.body.dictOfVars
-        ? JSON.parse(req.body.dictOfVars)
-        : {};
+  
+  try {
+    // Ensure an image file was uploaded
+    if (!req.file) {
+      res.status(400).json({ error: "No image provided" });
+      return;
+    }
+    
+    // Get the image buffer from the uploaded file.
+    const imageBuffer: Buffer = req.file.buffer;
 
       // Process the image using the analyzeImage function.
-      const analysisResult = await analyzeImage(imageBuffer, dictOfVars);
+      const analysisResult = await analyzeImage(imageBuffer);
+      
       res.json({ analysisResult });
     } catch (error) {
+      console.log(error);
+      
       res.status(500).json({ error: "Internal Server Error" });
     }
   }
 );
+
+
+
+async function getPromptFromAI( base64Image:GenerativePart): Promise<string> {
+
+  const ai = new GoogleGenAI({ apiKey:GEMINI_API_KEY as string  });
+
+  const system_prompt = `
+  You are an expert sketch artist ai and very advance prompt genrator 
+  Based on given Image data give a very advance prompt to improve this image into a very good sketch
+  i am gonna give this to gemini for image genration , give me very adnvace prompt for that
+
+  Rules:
+  - Only give the prompt no need for any explanaion or anything
+  - make sure to follow same colors for teh sketch as given data 
+  - dont change color unless absolutely neccesory
+  `
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      config: {
+        systemInstruction: system_prompt,
+      },
+      contents: base64Image,
+    });
+  
+
+  return response.text as string;
+}
+
+async function generateImageFromPrompt(prompt: string): Promise<Buffer | null> {
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+
+  const contents = prompt;
+
+  const system_prompt = `
+  You are a highly skilled virtual sketch artist, renowned for creating stunning and intricate artworks based on detailed prompts. 
+  Your task is to carefully interpret the given instructions and translate 
+  them into beautiful, imaginative sketches with exceptional attention to detail and artistic flair. 
+  Ensure every element reflects the nuances of the prompt to produce a truly remarkable piece of art.
+
+  make sure they are very details and also make sure they look very good on HTML canvas if rendered there
+
+  rules: 
+  - make sure to follow same colors for teh sketch as given data 
+  - dont change color unless absolutely neccesory 
+  - No background to the image just the sketch , remove full bacground 
+  - Make sure it doent have any background just main image cutout
+  - make sure they are very details
+  - make sure they look very good on HTML canvas if rendered there
+  - make sure it has pencil effect and looks drawn 
+  - make sure it looks like digital art
+  `;
+  
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.0-flash-preview-image-generation",
+    contents: system_prompt + contents,
+    config: {
+      // systemInstruction: system_prompt,
+      responseModalities: [Modality.TEXT, Modality.IMAGE],
+    },
+  });
+
+  const parts = response.candidates?.[0]?.content?.parts;
+
+  if (!parts || parts.length === 0) {
+    return null;
+  }
+
+  for (const part of parts) {
+    if (part.inlineData?.data) {
+      const imageData = part.inlineData.data;
+      const buffer = Buffer.from(imageData, "base64");
+      return buffer;
+    }
+  }
+
+  return null;
+}
+
+
+async function improveImage(
+  imageBuffer: Buffer,
+) {
+  // 1. Generate a prompt from the image
+  const mimeType = "image/jpeg";
+  const base64Image :GenerativePart = fileToGenerativePart(
+    imageBuffer,
+    mimeType
+  );
+
+
+  // 🔮 Step 1: Call GPT-4 Vision or Gemini Vision to generate a better prompt
+  const generatedPrompt = await getPromptFromAI(base64Image);
+
+  // 🖼️ Step 2: Use the prompt to generate an improved image
+  const enhancedImage  = await generateImageFromPrompt(generatedPrompt)  ;
+
+
+  return enhancedImage;
+}
+
+
+
+app.post("/api/improve/ai", upload.single("image"), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: "No image provided" });
+      return;
+    }
+
+    const imageBuffer: Buffer = req.file.buffer;
+
+    // Call your improveImage function that returns Buffer of improved image
+    const improvedImageBuffer = await improveImage(imageBuffer);
+
+    res.setHeader("Content-Type", "image/png");  // Or whatever format
+    console.log(improvedImageBuffer);
+    
+    res.send(improvedImageBuffer);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
 
 const PORT = 5000;
 

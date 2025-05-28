@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import initDraw from "../../../Component/canvas Logic";
+import { Shape } from "../../../Component/canvas Logic"; 
 import {
   Circle,
   Eraser,
@@ -57,6 +58,8 @@ const Page = ({ params }: Param) => {
   // New state for storing the AI response
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [runningAi,setRunningAi] = useState(false)
+  const [improvingAi,setImprovingAi] = useState(false)
+  const [imageURL, setImageURL] = useState<string | null>(null);
 
   // Refs to hold dynamic stroke settings so they’re used in drawing operations.
   const strokeColorRef = useRef(strokeColor);
@@ -137,6 +140,76 @@ const Page = ({ params }: Param) => {
     }, "image/png");
   };
 
+
+  // Page.tsx (around line 88, inside handleImprove function)
+
+const handleImprove = () => {
+  const canvas = canvasRef.current;
+  if (!canvas) {
+    addNotification("error", "Canvas element not found."); // More specific error
+    return;
+  }
+
+  // Check if the canvas has any shapes using the exposed function
+  if (cleanupRef.current && cleanupRef.current.isCanvasEmpty()) {
+    addNotification("info", "Nothing on canvas to improve.");
+    return; // Exit the function early
+  }
+
+  setImprovingAi(true);
+
+  canvas.toBlob(async (blob) => {
+    // This `if (!blob)` check is still useful as a fallback for unexpected browser issues
+    // where `toBlob` might fail even if the canvas is not technically empty.
+    if (!blob) {
+      addNotification("error", "Failed to capture canvas content.");
+      setImprovingAi(false);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", blob, "canvas.png");
+
+    try {
+      const response = await axios.post(`${BACKEND_URL}/api/improve/ai`, formData, {
+        responseType: 'blob',
+      });
+
+      const imageBlob = response.data;
+      const url = URL.createObjectURL(imageBlob);
+
+      const newImageShape: Shape = {
+        type: "image",
+        x: 0, // Adjust position/size as needed
+        y: 0,
+        width: canvas.width,
+        height: canvas.height,
+        src: url,
+      };
+
+      // Ensure socket and roomId are available before sending
+      if (socket && roomId) {
+        socket.send(JSON.stringify({ type: "chat", roomId, message: newImageShape }));
+      } else {
+        console.warn("Socket or Room ID not available, image not sent to other clients.");
+      }
+
+
+      if (cleanupRef.current && cleanupRef.current.addShapeLocally) {
+        cleanupRef.current.addShapeLocally(newImageShape);
+      } else {
+        console.warn("initDraw controls not available, image not added locally immediately.");
+      }
+
+    } catch (error) {
+      console.error("Improve Error:", error);
+      addNotification("error", "Failed to fetch improved canvas.");
+    } finally {
+      setImprovingAi(false);
+    }
+  }, "image/png");
+};
+
   useEffect(() => {
     strokeColorRef.current = strokeColor;
   }, [strokeColor]);
@@ -168,8 +241,13 @@ const Page = ({ params }: Param) => {
     modeRef.current = mode;
   }, [mode]);
 
-  // Use a ref to store the cleanup function returned by initDraw.
-  const cleanupRef = useRef<(() => void) | undefined>(undefined);
+  
+  const cleanupRef = useRef<{
+    cleanup: () => void;
+    addShapeLocally: (shape: Shape) => void;
+    isCanvasEmpty: () => boolean; 
+  } | undefined>(undefined);
+
 
   // Initialize canvas (and attach event listeners) when dimensions are available.
   useEffect(() => {
@@ -178,26 +256,26 @@ const Page = ({ params }: Param) => {
     if (canvas && dimensions) {
       (async () => {
         if (!socket) return;
-        const cleanup = await initDraw(
+        const controls = await initDraw( // Store the returned controls object
           canvas,
           modeRef,
           strokeColorRef,
           strokeWidthRef,
           socket,
           params,
-          setAiResponse
+          setAiResponse,
         );
         if (!cancelled) {
-          cleanupRef.current = cleanup;
+          cleanupRef.current = controls; // Store the controls object
         } else {
-          cleanup();
+          controls.cleanup(); // Call cleanup from the object if cancelled early
         }
       })();
     }
     return () => {
       cancelled = true;
       if (cleanupRef.current) {
-        cleanupRef.current();
+        cleanupRef.current.cleanup(); // Call the cleanup function from the object
         cleanupRef.current = undefined;
       }
     };
@@ -272,6 +350,13 @@ const Page = ({ params }: Param) => {
         <SettingsIcon size={24} />
       </button>
       <div className="absolute z-30 top-4 right-4 gap-3 flex items-center">
+        <button
+          onClick={() => handleImprove()}
+          className={`${runningAi? "bg-gray-900":"bg-gray-800 hover:bg-indigo-600 hover:text-white"} border border-gray-700 shadow-md font-bold px-3 py-1 gap-1 flex items-center rounded-full  text-gray-300 transition-colors duration-200`}
+        >
+          <div>{improvingAi? "Improving...":"Improve"}</div>
+          {!improvingAi && <Play size={14} />}
+        </button>
         <button
           onClick={() => handleSend()}
           className={`${runningAi? "bg-gray-900":"bg-gray-800 hover:bg-indigo-600 hover:text-white"} border border-gray-700 shadow-md font-bold px-3 py-1 gap-1 flex items-center rounded-full  text-gray-300 transition-colors duration-200`}
