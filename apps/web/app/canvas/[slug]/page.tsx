@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import initDraw from "../../../Component/canvas Logic";
-import { Shape } from "../../../Component/canvas Logic"; 
+import { Shape } from "../../../Component/canvas Logic";
 import {
   Circle,
   Eraser,
@@ -59,8 +59,8 @@ const Page = ({ params }: Param) => {
 
   // New state for storing the AI response
   const [aiResponse, setAiResponse] = useState<string | null>(null);
-  const [runningAi,setRunningAi] = useState(false)
-  const [improvingAi,setImprovingAi] = useState(false)
+  const [runningAi, setRunningAi] = useState(false);
+  const [improvingAi, setImprovingAi] = useState(false);
   const [imageURL, setImageURL] = useState<string | null>(null);
 
   // Refs to hold dynamic stroke settings so they’re used in drawing operations.
@@ -103,7 +103,7 @@ const Page = ({ params }: Param) => {
   const handleSend = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    setRunningAi(true)
+    setRunningAi(true);
     // Convert the canvas content to a Blob.
     canvas.toBlob(async (blob) => {
       if (!blob || !socket) {
@@ -136,109 +136,119 @@ const Page = ({ params }: Param) => {
         socket.send(JSON.stringify(message));
       } catch (error: any) {
         setAiResponse(JSON.stringify(error.rawData[0]));
-      }finally{
-        setRunningAi(false)
+      } finally {
+        setRunningAi(false);
       }
     }, "image/png");
   };
 
+  const cleanupRef = useRef<
+    | {
+        cleanup: () => void;
+        addShapeLocally: (shape: Shape) => void;
+        isCanvasEmpty: () => boolean;
+        getSelectedShapesInfo: () => Array<{
+          shape: Shape;
+          index: number;
+          bounds: { x: number; y: number; width: number; height: number };
+        }>;
+        deleteShapeById: (id: string) => void;
+        captureSelectedAreaBlob: () => Promise<Blob | null>;
+      }
+    | undefined
+  >(undefined);
 
-  const cleanupRef = useRef<{
-    cleanup: () => void;
-    addShapeLocally: (shape: Shape) => void;
-    isCanvasEmpty: () => boolean; 
-    getSelectedShapesInfo: () => Array<{ shape: Shape; index: number; bounds: { x: number; y: number; width: number; height: number } }>;
-    deleteShapeById: (id: string) => void;
-    captureSelectedAreaBlob: () => Promise<Blob | null>;
-  } | undefined>(undefined);
-
- 
   const handleImprove = () => {
     const canvas = canvasRef.current;
     if (!canvas) {
       addNotification("error", "Canvas element not found.");
       return;
     }
-  
+
     if (!cleanupRef.current) {
       addNotification("error", "Canvas drawing controls not initialized.");
       return;
     }
-  
+
     const selectedShapesInfoArray = cleanupRef.current.getSelectedShapesInfo();
-  
     if (selectedShapesInfoArray.length === 0) {
-      addNotification("info", "Please select shapes to improve."); // Updated message
+      addNotification("info", "Please select shapes to improve.");
       return;
     }
-  
+
     setImprovingAi(true);
-  
-    // Call the new function to capture the combined area of all selected shapes
+
     cleanupRef.current.captureSelectedAreaBlob().then(async (blob) => {
       if (!blob) {
         addNotification("error", "Failed to capture selected area content.");
         setImprovingAi(false);
         return;
       }
-  
+
       const formData = new FormData();
       formData.append("image", blob, "canvas.png");
-  
+
       try {
-        const response = await axios.post(`${BACKEND_URL}/api/improve/ai`, formData, {
-          responseType: 'blob',
-        });
-  
-        const imageBlob = response.data;
-        const url = URL.createObjectURL(imageBlob);
-  
-        // Calculate the combined bounds of the *original* selected shapes
-        // This logic needs to be repeated here to define the new image's position and size
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        selectedShapesInfoArray.forEach(info => {
-            minX = Math.min(minX, info.bounds.x);
-            minY = Math.min(minY, info.bounds.y);
-            maxX = Math.max(maxX, info.bounds.x + info.bounds.width);
-            maxY = Math.max(maxY, info.bounds.y + info.bounds.height);
+        // Tell axios to get raw binary data
+        const response = await axios.post(
+          `${BACKEND_URL}/api/improve/ai`,
+          formData,
+          {
+            responseType: "arraybuffer",
+          }
+        );
+
+        // Convert arraybuffer to base64 string
+        const base64 = arrayBufferToBase64(response.data);
+        const base64DataUri = `data:image/png;base64,${base64}`;
+
+        // Validate base64 string
+        if (!base64DataUri.startsWith("data:image")) {
+          throw new Error("Invalid base64 image format.");
+        }
+
+        // Calculate combined bounding box
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+        selectedShapesInfoArray.forEach((info) => {
+          minX = Math.min(minX, info.bounds.x);
+          minY = Math.min(minY, info.bounds.y);
+          maxX = Math.max(maxX, info.bounds.x + info.bounds.width);
+          maxY = Math.max(maxY, info.bounds.y + info.bounds.height);
         });
         const combinedBounds = {
-            x: minX,
-            y: minY,
-            width: maxX - minX,
-            height: maxY - minY,
+          x: minX,
+          y: minY,
+          width: maxX - minX,
+          height: maxY - minY,
         };
-  
+
         const newImageShape: Shape = {
           id: crypto.randomUUID(),
           type: "image",
-          x: combinedBounds.x, // Use combined bounds
-          y: combinedBounds.y, // Use combined bounds
-          width: combinedBounds.width, // Use combined bounds
-          height: combinedBounds.height, // Use combined bounds
-          src: url,
+          x: combinedBounds.x,
+          y: combinedBounds.y,
+          width: combinedBounds.width,
+          height: combinedBounds.height,
+          src: base64DataUri,
         };
-  
-        // --- Crucial Replacement Logic for MULTIPLE SHAPES ---
-  
-        // 1. Delete ALL original selected shapes locally
-        selectedShapesInfoArray.forEach(info => {
-            cleanupRef.current!.deleteShapeById(info.shape.id);
+
+        // Delete old shapes, add new one locally
+        selectedShapesInfoArray.forEach((info) => {
+          cleanupRef.current!.deleteShapeById(info.shape.id);
         });
-  
-        // 2. Add the new improved image shape locally
         cleanupRef.current!.addShapeLocally(newImageShape);
-  
-        // 3. Send deletion and addition messages via socket for other clients and persistence
+
+        // Send over socket
         if (socket && roomId) {
-          selectedShapesInfoArray.forEach(info => {
-              socket.send(JSON.stringify({ type: "delete_shape", roomId, id: info.shape.id }));
-          });
-          socket.send(JSON.stringify({ type: "chat", roomId, message: newImageShape }));
+          socket.send(
+            JSON.stringify({ type: "chat", roomId, message: newImageShape })
+          );
         } else {
-          console.warn("Socket or Room ID not available, replacement not synced to other clients.");
+          console.warn("Socket or Room ID not available.");
         }
-  
       } catch (error) {
         console.error("Improve Error:", error);
         addNotification("error", "Failed to fetch improved canvas.");
@@ -248,6 +258,20 @@ const Page = ({ params }: Param) => {
     });
   };
 
+
+
+
+  
+  // Helper to convert ArrayBuffer to Base64
+  function arrayBufferToBase64(buffer: ArrayBuffer) {
+    let binary = "";
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]!);
+    }
+    return window.btoa(binary);
+  }
 
   useEffect(() => {
     strokeColorRef.current = strokeColor;
@@ -280,7 +304,6 @@ const Page = ({ params }: Param) => {
     modeRef.current = mode;
   }, [mode]);
 
-
   // Initialize canvas (and attach event listeners) when dimensions are available.
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -288,14 +311,15 @@ const Page = ({ params }: Param) => {
     if (canvas && dimensions) {
       (async () => {
         if (!socket) return;
-        const controls = await initDraw( // Store the returned controls object
+        const controls = await initDraw(
+          // Store the returned controls object
           canvas,
           modeRef,
           strokeColorRef,
           strokeWidthRef,
           socket,
           params,
-          setAiResponse,
+          setAiResponse
         );
         if (!cancelled) {
           cleanupRef.current = controls; // Store the controls object
@@ -384,16 +408,16 @@ const Page = ({ params }: Param) => {
       <div className="absolute z-30 top-4 right-4 gap-3 flex items-center">
         <button
           onClick={() => handleImprove()}
-          className={`${runningAi? "bg-gray-900":"bg-gray-800 hover:bg-indigo-600 hover:text-white"} border border-gray-700 shadow-md font-bold px-3 py-1 gap-1 flex items-center rounded-full  text-gray-300 transition-colors duration-200`}
+          className={`${runningAi ? "bg-gray-900" : "bg-gray-800 hover:bg-indigo-600 hover:text-white"} border border-gray-700 shadow-md font-bold px-3 py-1 gap-1 flex items-center rounded-full  text-gray-300 transition-colors duration-200`}
         >
-          <div>{improvingAi? "Improving...":"Improve"}</div>
+          <div>{improvingAi ? "Improving..." : "Improve"}</div>
           {!improvingAi && <Play size={14} />}
         </button>
         <button
           onClick={() => handleSend()}
-          className={`${runningAi? "bg-gray-900":"bg-gray-800 hover:bg-indigo-600 hover:text-white"} border border-gray-700 shadow-md font-bold px-3 py-1 gap-1 flex items-center rounded-full  text-gray-300 transition-colors duration-200`}
+          className={`${runningAi ? "bg-gray-900" : "bg-gray-800 hover:bg-indigo-600 hover:text-white"} border border-gray-700 shadow-md font-bold px-3 py-1 gap-1 flex items-center rounded-full  text-gray-300 transition-colors duration-200`}
         >
-          <div>{runningAi? "Running...":"Run"}</div>
+          <div>{runningAi ? "Solving..." : "Solve"}</div>
           {!runningAi && <Play size={14} />}
         </button>
         <button
@@ -490,7 +514,7 @@ const Page = ({ params }: Param) => {
       {/* Drawing Mode Toolbar */}
       <div className="absolute z-40 top-4 left-1/2 transform -translate-x-1/2 flex items-center space-x-3 px-4 py-2 rounded-full bg-gray-900 border border-gray-700 shadow-md">
         {[
-          { name: "select", symbol: <TextCursor /> },
+          { name: "select", symbol: <img src={'/cursor.png'}/> },
           { name: "rect", symbol: <RectangleHorizontal /> },
           { name: "circle", symbol: <Circle /> },
           { name: "line", symbol: <Minus /> },

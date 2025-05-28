@@ -546,10 +546,9 @@ app.post("/api/improve/ai", upload.single("image"), async (req: Request, res: Re
     const improvedImageBuffer = await improveImage(imageBuffer);
 
     res.setHeader("Content-Type", "image/png");  // Or whatever format
-    console.log(improvedImageBuffer);
     
     res.send(improvedImageBuffer);
-
+    
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server Error" });

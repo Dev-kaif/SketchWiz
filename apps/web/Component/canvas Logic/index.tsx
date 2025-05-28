@@ -778,13 +778,21 @@ function captureSelectedAreaBlob(): Promise<Blob | null> {
 
   const roomId = await loadPreviousShapes();
 
+
   socket.onmessage = (e) => {
     const data = JSON.parse(e.data);
+  
     if (data.type === "chat" && data.message) {
-      // ADDED: Assert data.message is a Shape for type safety
-      state.shapes.push(data.message as Shape);
+      const shape = data.message as Shape;
+  
+      if (shape.type === "image" && shape.src.startsWith("data:image")) {
+        state.shapes.push(shape);
+      }
+  
+      state.shapes.push(shape);
       scheduleRender();
     }
+  
     if (data.type === "ai") {
       setAiResponse(data.message);
     }
