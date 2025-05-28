@@ -494,7 +494,7 @@ const Page = ({ params }: Param) => {
         ref={canvasRef}
         width={dimensions.width}
         height={dimensions.height}
-        className="absolute top-0 left-0 bg-[#1A1614]"
+        className="absolute top-0 left-0 bg-black"
       />
       {/* Eraser Cursor Overlay */}
       <div
