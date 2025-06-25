@@ -5,6 +5,13 @@ SketchWiz is a real-time, AI-enhanced collaborative canvas built using cutting-e
 
 ---
 
+# 📽️ Demo
+
+[![Watch the demo](https://img.youtube.com/vi/UU-s-GS0FT8/hqdefault.jpg)](https://youtu.be/UU-s-GS0FT8)
+
+
+---
+
 ## 🚀 Features
 
 * 🔁 **Real-Time Collaboration**
