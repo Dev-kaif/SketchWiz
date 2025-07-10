@@ -9,8 +9,12 @@ import { client } from "@repo/db/client";
 import multer from "multer";
 import { GoogleGenAI, Modality } from "@google/genai";
 import { GEMINI_API_KEY } from "@repo/backend/config";
-import * as fs from 'node:fs';
-import { any, string } from "zod";
+import path ,{join} from "path";
+import { removeBackground, Config } from "@imgly/background-removal-node";
+import { fileURLToPath, pathToFileURL  } from "url";
+import { promises as fs } from 'fs';
+import { tmpdir } from 'os';
+
 
 const app = express();
 app.use(express.json());
@@ -278,10 +282,8 @@ app.delete(
 
 const upload = multer();
 
-
-
 // Initialize the Gemini generative AI model with your API key
-const genAI = new GoogleGenAI({ apiKey: GEMINI_API_KEY as string});
+const genAI = new GoogleGenAI({ apiKey: GEMINI_API_KEY as string });
 
 interface GenerativePart {
   inlineData: {
@@ -363,32 +365,33 @@ async function analyzeImage(
     // Send the prompt and image part to the Gemini model
     const result = await genAI.models.generateContent({
       model: "gemini-2.0-flash",
-      config:{
-        systemInstruction:prompt
+      config: {
+        systemInstruction: prompt,
       },
-      contents: imagePart
+      contents: imagePart,
     });
-  
-    const responseText: string = await result.text as string;
+
+    const responseText: string = (await result.text) as string;
 
     console.log(responseText);
-    
 
     // Clean up the response by removing markdown formatting and normalizing quotes
     const cleanedResponse = responseText
-    .replace(/```json/g, "") 
-    .replace(/```/g, "")
-    .replace(/'/g, '"') 
-    .replace(/\bTrue\b/g, "true") 
-    .replace(/\bFalse\b/g, "false")
-    .replace(/:\s*"([^"]*?)"(?=\s*[},])/g, (match, p1) => `: "${p1.replace(/"/g, '\\"')}"`); // Escape quotes inside values
-
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .replace(/'/g, '"')
+      .replace(/\bTrue\b/g, "true")
+      .replace(/\bFalse\b/g, "false")
+      .replace(
+        /:\s*"([^"]*?)"(?=\s*[},])/g,
+        (match, p1) => `: "${p1.replace(/"/g, '\\"')}"`
+      ); // Escape quotes inside values
 
     let answers: object[] = [];
     try {
       answers = JSON.parse(cleanedResponse);
     } catch (error) {
-      return [ {cleanedResponse} ];
+      return [{ cleanedResponse }];
     }
 
     return answers;
@@ -397,69 +400,68 @@ async function analyzeImage(
   }
 }
 
-
-
-
 /**
  * POST /analyze
  * Expects a multipart/form-data request with an "image" file and optionally a "dictOfVars" field (JSON string).
  * Returns the analysis result from the generative AI model.
  */
-app.post("/api/analyze/ai", upload.single("image"),async (req: Request, res: Response) => {
-  
-  try {
-    // Ensure an image file was uploaded
-    if (!req.file) {
-      res.status(400).json({ error: "No image provided" });
-      return;
-    }
-    
-    // Get the image buffer from the uploaded file.
-    const imageBuffer: Buffer = req.file.buffer;
+app.post(
+  "/api/analyze/ai",
+  upload.single("image"),
+  async (req: Request, res: Response) => {
+    try {
+      // Ensure an image file was uploaded
+      if (!req.file) {
+        res.status(400).json({ error: "No image provided" });
+        return;
+      }
+
+      // Get the image buffer from the uploaded file.
+      const imageBuffer: Buffer = req.file.buffer;
 
       // Process the image using the analyzeImage function.
       const analysisResult = await analyzeImage(imageBuffer);
-      
+
       res.json({ analysisResult });
     } catch (error) {
       console.log(error);
-      
+
       res.status(500).json({ error: "Internal Server Error" });
     }
   }
 );
 
-
-
-async function getPromptFromAI( base64Image:GenerativePart): Promise<string> {
-
-  const ai = new GoogleGenAI({ apiKey:GEMINI_API_KEY as string  });
+async function getPromptFromAI(base64Image: GenerativePart): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY as string });
 
   const system_prompt = `
-  You are an **expert sketch artist AI and a highly advanced prompt generator**. Your core function is to analyze provided image data and, based on that analysis, construct an exceptionally detailed and sophisticated prompt specifically designed to guide an image generation AI (like Gemini) in creating a **superior, high-quality sketch**.
+You are an **expert sketch artist AI and a highly advanced prompt generator**, designed to analyze provided image data and construct **exceptionally detailed, technically accurate prompts** to guide image generation models (such as Gemini) in creating **superior, high-quality digital sketches**.
 
-  Your generated prompt must aim to significantly enhance the given image data, transforming it into a visually compelling and intricate sketch.
+Your generated prompt must intelligently and creatively **enhance the input image**, instructing the AI to produce a visually compelling, stylistically consistent, and intricately detailed pencil-style sketch.
 
-  **ABSOLUTE AND NON-NEGOTIABLE RULES FOR PROMPT GENERATION:**
+**NON-NEGOTIABLE RULES FOR PROMPT GENERATION — STRICTLY ENFORCED:**
 
-  1.  **OUTPUT FORMAT - PROMPT ONLY:** Your entire output **MUST CONSIST SOLELY OF THE GENERATED PROMPT**. No introductory text, explanations, conversational remarks, or any other extraneous content is permitted.
-  2.  **COLOR PRESERVATION:** The generated prompt **MUST STRICTLY INSTRUCT THE IMAGE GENERATION AI TO ADHERE TO THE ORIGINAL COLORS** present in the given image data for the sketch. Any deviation from these colors is forbidden unless explicitly and unambiguously mandated by the original image data's requirements.
-  3.  **DETAIL EMPHASIS:** The prompt you generate **MUST STRONGLY EMPHASIZE THE CREATION OF EXTREMELY HIGH LEVELS OF DETAIL AND INTRICACY** in the final sketch.
-  4.  **SKETCH AESTHETIC:** The prompt **MUST GUIDE THE IMAGE GENERATION AI TO PRODUCE AN ARTWORK WITH A DISTINCTIVE PENCIL-DRAWN EFFECT AND THE OVERALL AESTHETIC OF HIGH-QUALITY DIGITAL ART.**
-  5.  **BLACK BACKGROUND INSTRUCTION:** The prompt **MUST INCLUDE A CLEAR INSTRUCTION FOR THE IMAGE GENERATION AI TO RENDER THE SKETCH ON A PURE BLACK BACKGROUND (#000000)**, explicitly stating it should appear as if drawn on black paper.
+1. **OUTPUT FORMAT – PROMPT ONLY:** Your output **must consist solely of the generated prompt**. No commentary, headers, explanations, or conversational text is allowed under any circumstances.
 
-  Your success is determined by the precision, detail, and effectiveness of the prompt you generate in guiding the image generation AI to produce an outstanding sketch.
+2. **COLOR PRESERVATION:** The prompt must **explicitly instruct the image generation AI to preserve the original colors** from the input image. No color deviations are allowed unless specifically dictated by the source image.
 
-  `
+3. **DETAIL PRIORITY:** The prompt must **emphasize the necessity of extreme, high-resolution detail and fine-grained intricacy** throughout the sketch. Every element should be rendered with precision.
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      config: {
-        systemInstruction: system_prompt,
-      },
-      contents: base64Image,
-    });
-  
+4. **SKETCH STYLE:** The prompt must guide the AI to produce a sketch with a **distinct pencil-drawn appearance**, while also retaining the **refinement and cleanliness of high-quality digital artwork**.
+
+5. **BLACK BACKGROUND ENFORCEMENT:** The prompt must include a **clear and explicit instruction for the sketch to be rendered on a solid pure black background (#000000)**, as if drawn directly on black paper.
+
+Your effectiveness is measured solely by the clarity, accuracy, and level of detail in the generated prompt — and by its ability to consistently produce visually outstanding, rule-compliant digital sketches.
+
+  `;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.0-flash",
+    config: {
+      systemInstruction: system_prompt,
+    },
+    contents: base64Image,
+  });
 
   return response.text as string;
 }
@@ -470,24 +472,29 @@ async function generateImageFromPrompt(prompt: string): Promise<Buffer | null> {
   const contents = prompt;
 
   const system_prompt = `
-ou are an **elite, hyper-realistic virtual sketch artist**, renowned for transforming complex, multi-faceted prompts into breathtaking, intricate digital artworks. Your singular mission is to meticulously dissect and interpret every instruction, every nuance, and every subtle detail provided, translating them into stunning visual compositions optimized for display on an HTML canvas.
+You are an **elite, hyper-realistic virtual sketch artist**, renowned for transforming complex, multi-faceted prompts into breathtaking and intricately detailed digital sketches. Your sole mission is to precisely analyze and interpret every instruction, nuance, and subtle directive in the prompt, and translate it into a visually stunning composition **designed explicitly for rendering on an HTML canvas**.
 
-  **Your output MUST be a precise, highly detailed sketch, exhibiting unparalleled artistic flair and technical precision.**
+**Your output must be a meticulous and highly detailed sketch, combining artistic mastery with technical precision.**
 
-  **ABSOLUTE AND NON-NEGOTIABLE RULES:**
+**NON-NEGOTIABLE RULES — STRICTLY ENFORCED:**
 
-  1.  **OUTPUT TYPE - SKETCH ONLY:** You **MUST ALWAYS PRODUCE A SKETCH, NEVER A PHOTOGRAPHIC IMAGE OR ANY OTHER NON-SKETCH FORMAT.**
-  2.  **COLOR FIDELITY:** You **SHALL NOT DEVIATE** from the specified colors within the given data. Colors must be replicated with absolute accuracy. Any alteration of color is strictly forbidden unless explicitly and unambiguously stated as a requirement in the prompt.
-  3.  **BACKGROUND MANDATE:** The background of the entire artwork **MUST BE PURE BLACK (#000000)**. This explicitly means the sketch must be rendered **as if drawn directly on black paper or a solid black background**. No other color, shade, or transparency is permissible for the background under any circumstances whatsoever.
-  4.  **DETAIL INTENSITY:** Every element within the sketch **MUST BE RENDERED WITH EXTREME AND MICROSCOPIC DETAIL**. The level of intricacy should be maximal, capturing every possible nuance and texture.
-  5.  **CANVAS OPTIMIZATION:** The final sketch **MUST BE DESIGNED AND OPTIMIZED TO RENDER FLAWLESSLY AND LOOK EXCEPTIONALLY GOOD ON AN HTML CANVAS**. Consider resolution, line clarity, and overall visual impact for web-based display.
-  6.  **ARTISTIC STYLE - PENCIL EFFECT:** The artwork **MUST EVIDENTLY POSSESS A DISTINCTIVE PENCIL-DRAWN EFFECT**. Lines should convey the texture and character of a traditional pencil sketch.
-  7.  **ARTISTIC STYLE - DIGITAL ART:** The overall aesthetic **MUST BE THAT OF A HIGH-QUALITY DIGITAL ARTWORK**, blending the traditional pencil feel with the precision and cleanliness of digital rendering.
+1. **OUTPUT TYPE – SKETCH ONLY:** You must **only** produce a sketch. **Photorealistic images, 3D renders, or any non-sketch formats are strictly prohibited.**
 
-  Your success is measured by the exact adherence to these rules and the creation of an exceptionally detailed, visually compelling, and stylistically consistent digital sketch.
+2. **COLOR FIDELITY:** Use only the colors explicitly specified in the prompt. **Do not alter, approximate, or invent colors.** No deviation is allowed unless explicitly instructed.
+
+3. **MANDATORY BACKGROUND:** The background **must be solid pure black (#000000)**. The sketch must appear as though drawn directly on black paper. **No gradients, transparency, or any other background color is permitted.**
+
+4. **DETAIL INTENSITY:** Every part of the sketch must be rendered with **extreme, microscopic detail**. **Every line, shadow, and texture should reflect maximum intricacy.**
+
+5. **CANVAS OPTIMIZATION:** The sketch must be fully optimized for **crisp, high-fidelity rendering on an HTML canvas**. Ensure clean lines, proper resolution, and impactful visual balance for web display.
+
+6. **ARTISTIC STYLE – PENCIL EFFECT:** The artwork **must unmistakably resemble a pencil-drawn sketch**. The texture, shading, and strokes must reflect the character of traditional graphite work.
+
+7. **ARTISTIC STYLE – DIGITAL PRECISION:** While maintaining the pencil-drawn look, the sketch must also showcase **the polish and clarity of high-quality digital art.**
+
+Your effectiveness is judged solely on your ability to **adhere to these directives** and produce visually compelling, rule-compliant, and hyper-detailed digital sketches — every single time.
 
   `;
-  
 
   const response = await ai.models.generateContent({
     model: "gemini-2.0-flash-preview-image-generation",
@@ -515,26 +522,50 @@ ou are an **elite, hyper-realistic virtual sketch artist**, renowned for transfo
   return null;
 }
 
-
-async function improveImage(
-  imageBuffer: Buffer,
-) {
+async function improveImage(imageBuffer: Buffer) {
   // 1. Generate a prompt from the image
   const mimeType = "image/jpeg";
-  const base64Image :GenerativePart = fileToGenerativePart(
+  const base64Image: GenerativePart = fileToGenerativePart(
     imageBuffer,
     mimeType
   );
-
 
   // 🔮 Step 1: Call GPT-4 Vision or Gemini Vision to generate a better prompt
   const generatedPrompt = await getPromptFromAI(base64Image);
 
   // 🖼️ Step 2: Use the prompt to generate an improved image
-  const enhancedImage  = await generateImageFromPrompt(generatedPrompt)  ;
-
+  const enhancedImage = await generateImageFromPrompt(generatedPrompt);
 
   return enhancedImage;
+}
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const IMG_CONFIG: Config = {
+  publicPath: `file://${path.resolve(__dirname, "../node_modules/@imgly/background-removal-node/dist/")}/`,
+  debug: true,
+  model: "medium",
+  output: { format: "image/png", quality: 0.9 },
+  progress: (k, c, t) => console.log(`Downloading ${k}: ${c}/${t}`),
+};
+
+
+async function remove(bufImage: Buffer): Promise<Buffer> {
+  // Write the buffer to a temporary file
+  const tempPath = join(tmpdir(), `improved_${Date.now()}.png`);
+  await fs.writeFile(tempPath, bufImage);
+
+  // Use file URL
+  const fileUrl = pathToFileURL(tempPath).href;
+
+  const blob = await removeBackground(fileUrl, IMG_CONFIG);
+  const ab = await blob.arrayBuffer();
+  const outBuf = Buffer.from(ab);
+
+  await fs.unlink(tempPath);
+
+  return outBuf;
 }
 
 
@@ -548,19 +579,19 @@ app.post("/api/improve/ai", upload.single("image"), async (req: Request, res: Re
 
     const imageBuffer: Buffer = req.file.buffer;
 
-    // Call your improveImage function that returns Buffer of improved image
+    // Call your improveImage function that returns Bufferz of improved image
     const improvedImageBuffer = await improveImage(imageBuffer);
+    const no_bg_image = await remove(improvedImageBuffer!)
 
-    res.setHeader("Content-Type", "image/png");  // Or whatever format
+    res.setHeader("Content-Type", "image/png"); 
     
-    res.send(improvedImageBuffer);
+    res.send(no_bg_image);
     
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 
 
 const PORT = 5000;

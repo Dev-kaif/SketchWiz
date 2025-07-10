@@ -10,6 +10,7 @@
   "dependencies": {
     "@google/genai": "^1.1.0",
     "@google/generative-ai": "^0.21.0",
+    "@imgly/background-removal-node": "^1.4.5",
     "@repo/backend": "workspace:*",
     "@repo/common": "workspace:*",
     "@repo/db": "workspace:*",
