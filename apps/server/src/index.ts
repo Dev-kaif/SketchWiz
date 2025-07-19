@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import bcrypt from "bcrypt";
-import { RoomSchema, CreateUserSchema, SigninSchema } from "@repo/common/type";
+// import { RoomSchema, CreateUserSchema, SigninSchema } from "@repo/common/type";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend/config";
 import auth from "./auth.js";
@@ -14,6 +14,25 @@ import { removeBackground, Config } from "@imgly/background-removal-node";
 import { fileURLToPath, pathToFileURL  } from "url";
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
+
+import {z} from 'zod'
+
+export const CreateUserSchema = z.object({
+    email:z.string().email(),
+    username:z.string().min(3).max(30),
+    name:z.string().min(3).max(30),
+    photo:z.string().optional(),
+    password:z.string().min(8, { message: "Password must be at least 8 characters long" })
+})
+
+export const SigninSchema = z.object({
+    email:z.string().email(),
+    password:z.string().min(8, { message: "Password must be at least 8 characters long" })
+})
+
+export const RoomSchema = z.object({
+    roomName:z.string().min(3).max(30)
+})
 
 
 const app = express();
