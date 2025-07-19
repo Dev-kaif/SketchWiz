@@ -58,6 +58,11 @@ declare global {
   }
 }
 
+app.get("/api/ping", (req, res) => {
+  res.status(200).send("pong");
+});
+
+
 app.post("/api/signup", async (req: Request, res: Response) => {
   const validation = CreateUserSchema.safeParse(req.body);
 
@@ -143,6 +148,7 @@ app.post("/api/signin", async (req: Request, res: Response) => {
     });
     return;
   } catch (error) {
+    console.error(error)
     res.status(500).json({
       message: "Internal server error during signin",
     });
@@ -615,7 +621,7 @@ app.post("/api/improve/ai", upload.single("image"), async (req: Request, res: Re
     res.send(no_bg_image);
     
   } catch (error) {
-    console.error(error);
+    console.log(error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
