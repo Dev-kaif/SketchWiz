@@ -1,6 +1,8 @@
+import 'dotenv/config'
 import { NextFunction, Request, Response } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
-import { JWT_SECRET } from '@repo/backend/config';
+// import { JWT_SECRET } from '@repo/backend/config';
+const JWT_SECRET = process.env.JWT_SECRET 
 
 interface RequestWithUserId extends Request{
     userId?:string;

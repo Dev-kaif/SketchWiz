@@ -1,8 +1,10 @@
 import WebSocket, { WebSocketServer } from "ws";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { JWT_SECRET } from "@repo/backend/config";
+// import { JWT_SECRET } from "@repo/backend/config";
 // import { client } from "@repo/db/client";
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from "@prisma/client";
+import "dotenv/config";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const client = new PrismaClient();
 
@@ -23,7 +25,6 @@ interface DataType {
 const users: User[] = [];
 
 wss.on("connection", (socket, request) => {
-
   try {
     const url = request.url;
     const queryParam = new URLSearchParams(url?.split("?")[1]);
@@ -40,66 +41,65 @@ wss.on("connection", (socket, request) => {
     users.push(user);
 
     socket.on("message", async (data) => {
-        const parsedData: DataType = JSON.parse(data.toString());
+      const parsedData: DataType = JSON.parse(data.toString());
 
-        switch (parsedData.type) {
-          case "join_room":
-            if (!user.rooms.includes(parsedData.roomId)) {
-              user.rooms.push(parsedData.roomId);
+      switch (parsedData.type) {
+        case "join_room":
+          if (!user.rooms.includes(parsedData.roomId)) {
+            user.rooms.push(parsedData.roomId);
+          }
+          break;
+
+        case "leave_room":
+          user.rooms = user.rooms.filter((id) => id !== parsedData.roomId);
+          break;
+
+        case "chat":
+          if (!parsedData.message) {
+            return;
+          }
+
+          await client.chat.create({
+            data: {
+              roomId: parsedData.roomId,
+              message: JSON.stringify(parsedData.message),
+              userId: user.userId,
+            },
+          });
+
+          users.forEach((user) => {
+            if (user.rooms.includes(parsedData.roomId) && user.ws !== socket) {
+              user.ws.send(
+                JSON.stringify({
+                  type: "chat",
+                  message: parsedData.message,
+                  roomId: parsedData.roomId,
+                })
+              );
             }
-            break;
+          });
+          break;
 
-          case "leave_room":
-            user.rooms = user.rooms.filter((id) => id !== parsedData.roomId);
-            break;
+        case "ai":
+          if (!parsedData.message) {
+            return;
+          }
 
-          case "chat" :
-            if (!parsedData.message) {
-              return;
+          users.forEach((user) => {
+            if (user.rooms.includes(parsedData.roomId)) {
+              user.ws.send(
+                JSON.stringify({
+                  type: "ai",
+                  message: parsedData.message,
+                  roomId: parsedData.roomId,
+                })
+              );
             }
+          });
+          break;
 
-            await client.chat.create({
-              data: {
-                roomId: parsedData.roomId,
-                message: JSON.stringify(parsedData.message),
-                userId: user.userId,
-              },
-            });
-
-            users.forEach((user) => {
-              if (user.rooms.includes(parsedData.roomId)&& user.ws !== socket) {
-                user.ws.send(
-                  JSON.stringify({
-                    type: "chat",
-                    message: parsedData.message,
-                    roomId: parsedData.roomId,
-                  })
-                );
-              }
-            });
-            break;
-
-          case "ai" :
-            if (!parsedData.message) {
-              return;
-            }
-
-            users.forEach((user) => {
-              if (user.rooms.includes(parsedData.roomId)) {
-                user.ws.send(
-                  JSON.stringify({
-                    type: "ai",
-                    message: parsedData.message,
-                    roomId: parsedData.roomId,
-                  })
-                );
-              }
-            });
-            break;
-
-          default:
-        }
-
+        default:
+      }
     });
 
     socket.on("close", () => {

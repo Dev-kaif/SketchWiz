@@ -8,13 +8,16 @@ import auth from "./auth.js";
 // import { client } from "@repo/db/client";
 import multer from "multer";
 import { GoogleGenAI, Modality } from "@google/genai";
-import { GEMINI_API_KEY } from "@repo/backend/config";
+// import { GEMINI_API_KEY } from "@repo/backend/config";
 import path ,{join} from "path";
 import { removeBackground, Config } from "@imgly/background-removal-node";
 import { fileURLToPath, pathToFileURL  } from "url";
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { PrismaClient } from '@prisma/client'
+import 'dotenv/config'
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 
 import {z} from 'zod'
 

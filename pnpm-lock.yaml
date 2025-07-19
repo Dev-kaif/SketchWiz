@@ -159,6 +159,9 @@ importers:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.4.7
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.2
