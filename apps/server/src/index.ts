@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend/config";
 import auth from "./auth.js";
-import { client } from "@repo/db/client";
+// import { client } from "@repo/db/client";
 import multer from "multer";
 import { GoogleGenAI, Modality } from "@google/genai";
 import { GEMINI_API_KEY } from "@repo/backend/config";
@@ -14,6 +14,7 @@ import { removeBackground, Config } from "@imgly/background-removal-node";
 import { fileURLToPath, pathToFileURL  } from "url";
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
+import { PrismaClient } from '@prisma/client'
 
 import {z} from 'zod'
 
@@ -33,6 +34,9 @@ export const SigninSchema = z.object({
 export const RoomSchema = z.object({
     roomName:z.string().min(3).max(30)
 })
+
+
+const client = new PrismaClient();
 
 
 const app = express();

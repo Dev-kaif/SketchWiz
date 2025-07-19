@@ -8,18 +8,20 @@
     "start": "node dist/index.js",
     "dev": "tsc -b && node dist/index.js"
   },
-"dependencies": {
-  "@repo/typescript-config": "workspace:*",
-  "@repo/db": "workspace:*",
-  "@repo/backend": "workspace:*",
-  "jsonwebtoken": "^9.0.2",
-  "ws": "^8.18.0"
-},
-"devDependencies": {
-  "@types/node": "^20.11.0",
-  "@types/jsonwebtoken": "^9.0.8",
-  "@types/ws": "^8.5.14"
-},
+  "dependencies": {
+    "@prisma/client": "6.3.0",
+    "@repo/backend": "workspace:*",
+    "@repo/db": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "jsonwebtoken": "^9.0.2",
+    "prisma": "^6.3.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.8",
+    "@types/node": "^20.11.0",
+    "@types/ws": "^8.5.14"
+  },
   "author": "",
   "license": "ISC",
   "description": ""

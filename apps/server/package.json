@@ -12,6 +12,7 @@
     "@google/genai": "^1.1.0",
     "@google/generative-ai": "^0.21.0",
     "@imgly/background-removal-node": "^1.4.5",
+    "@prisma/client": "6.3.0",
     "@repo/backend": "workspace:*",
     "@repo/common": "workspace:*",
     "@repo/db": "workspace:*",
@@ -28,6 +29,7 @@
     "install": "^0.13.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "1.4.5-lts.1",
+    "prisma": "^6.3.0",
     "zod": "^3.24.1"
   },
   "author": "",
