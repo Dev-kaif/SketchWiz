@@ -18,7 +18,7 @@ import { tmpdir } from 'os';
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors({origin:"*"}));
 
 const SALT_ROUNDS = 10;
 
