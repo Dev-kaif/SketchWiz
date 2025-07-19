@@ -1,22 +1,23 @@
+// import { RoomSchema, CreateUserSchema, SigninSchema } from "@repo/common/type";
+// import { client } from "@repo/db/client";
+// import { GEMINI_API_KEY } from "@repo/backend/config";
+// import { JWT_SECRET } from "@repo/backend/config";
 import express, { Request, Response } from "express";
 import cors from "cors";
 import bcrypt from "bcrypt";
-// import { RoomSchema, CreateUserSchema, SigninSchema } from "@repo/common/type";
 import jwt from "jsonwebtoken";
-import { JWT_SECRET } from "@repo/backend/config";
 import auth from "./auth.js";
-// import { client } from "@repo/db/client";
 import multer from "multer";
 import { GoogleGenAI, Modality } from "@google/genai";
-// import { GEMINI_API_KEY } from "@repo/backend/config";
 import path ,{join} from "path";
 import { removeBackground, Config } from "@imgly/background-removal-node";
 import { fileURLToPath, pathToFileURL  } from "url";
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { PrismaClient } from '@prisma/client'
-import 'dotenv/config'
+import 'dotenv/config';
 
+const JWT_SECRET = process.env.JWT_SECRET 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 
 import {z} from 'zod'
