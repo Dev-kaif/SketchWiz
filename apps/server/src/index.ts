@@ -577,7 +577,7 @@ const __dirname = path.dirname(__filename);
 const IMG_CONFIG: Config = {
   publicPath: `file://${path.resolve(__dirname, "../node_modules/@imgly/background-removal-node/dist/")}/`,
   debug: true,
-  model: "medium",
+  model: "small",
   output: { format: "image/png", quality: 0.9 },
   progress: (k, c, t) => console.log(`Downloading ${k}: ${c}/${t}`),
 };
