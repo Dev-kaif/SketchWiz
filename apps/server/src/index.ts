@@ -571,41 +571,41 @@ async function improveImage(imageBuffer: Buffer) {
   return enhancedImage;
 }
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
 
-const IMG_CONFIG: Config = {
-  publicPath: `file://${path.resolve(__dirname, "../node_modules/@imgly/background-removal-node/dist/")}/`,
-  debug: true,
-  model: "small",
-  output: { format: "image/png", quality: 0.9 },
-  progress: (k, c, t) => console.log(`Downloading ${k}: ${c}/${t}`),
-};
+// const IMG_CONFIG: Config = {
+//   publicPath: `file://${path.resolve(__dirname, "../node_modules/@imgly/background-removal-node/dist/")}/`,
+//   debug: true,
+//   model: "small",
+//   output: { format: "image/png", quality: 0.9 },
+//   progress: (k, c, t) => console.log(`Downloading ${k}: ${c}/${t}`),
+// };
 
-import sharp from "sharp";
+// import sharp from "sharp";
 
-async function remove(bufImage: Buffer): Promise<Buffer> {
-  // Write the buffer to a temporary file
-  const tempPath = join(tmpdir(), `improved_${Date.now()}.png`);
+// async function remove(bufImage: Buffer): Promise<Buffer> {
+//   // Write the buffer to a temporary file
+//   const tempPath = join(tmpdir(), `improved_${Date.now()}.png`);
 
-  const pngBuffer = await sharp(bufImage)
-    .resize({ width: 512 })
-    .png({ compressionLevel: 9 })
-    .toBuffer();
+//   const pngBuffer = await sharp(bufImage)
+//     .resize({ width: 512 })
+//     .png({ compressionLevel: 9 })
+//     .toBuffer();
 
-  await fs.writeFile(tempPath, pngBuffer);
+//   await fs.writeFile(tempPath, pngBuffer);
 
-  // Use file URL
-  const fileUrl = pathToFileURL(tempPath).href;
+//   // Use file URL
+//   const fileUrl = pathToFileURL(tempPath).href;
 
-  const blob = await removeBackground(fileUrl, IMG_CONFIG);
-  const ab = await blob.arrayBuffer();
-  const outBuf = Buffer.from(ab);
+//   const blob = await removeBackground(fileUrl, IMG_CONFIG);
+//   const ab = await blob.arrayBuffer();
+//   const outBuf = Buffer.from(ab);
 
-  await fs.unlink(tempPath);
+//   await fs.unlink(tempPath);
 
-  return outBuf;
-}
+//   return outBuf;
+// }
 
 app.post(
   "/api/improve/ai",
@@ -619,13 +619,15 @@ app.post(
 
       const imageBuffer: Buffer = req.file.buffer;
 
-      // Call your improveImage function that returns Bufferz of improved image
+      // Call improveImage function that returns Bufferz of improved image
       const improvedImageBuffer = await improveImage(imageBuffer);
-      const no_bg_image = await remove(improvedImageBuffer!);
+      // const no_bg_image = await remove(improvedImageBuffer!);
 
+      
       res.setHeader("Content-Type", "image/png");
-
-      res.send(no_bg_image);
+      
+      res.send(improvedImageBuffer);
+      // res.send(no_bg_image);
     } catch (error) {
       console.log(error);
       res.status(500).json({ error: "Internal Server Error" });
