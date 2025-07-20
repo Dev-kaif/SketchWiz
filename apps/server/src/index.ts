@@ -9,43 +9,45 @@ import jwt from "jsonwebtoken";
 import auth from "./auth.js";
 import multer from "multer";
 import { GoogleGenAI, Modality } from "@google/genai";
-import path ,{join} from "path";
+import path, { join } from "path";
 import { removeBackground, Config } from "@imgly/background-removal-node";
-import { fileURLToPath, pathToFileURL  } from "url";
-import { promises as fs } from 'fs';
-import { tmpdir } from 'os';
-import { PrismaClient } from '@prisma/client'
-import 'dotenv/config';
+import { fileURLToPath, pathToFileURL } from "url";
+import { promises as fs } from "fs";
+import { tmpdir } from "os";
+import { PrismaClient } from "@prisma/client";
+import "dotenv/config";
 
-const JWT_SECRET = process.env.JWT_SECRET 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY
+const JWT_SECRET = process.env.JWT_SECRET;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-import {z} from 'zod'
+import { z } from "zod";
 
 export const CreateUserSchema = z.object({
-    email:z.string().email(),
-    username:z.string().min(3).max(30),
-    name:z.string().min(3).max(30),
-    photo:z.string().optional(),
-    password:z.string().min(8, { message: "Password must be at least 8 characters long" })
-})
+  email: z.string().email(),
+  username: z.string().min(3).max(30),
+  name: z.string().min(3).max(30),
+  photo: z.string().optional(),
+  password: z
+    .string()
+    .min(8, { message: "Password must be at least 8 characters long" }),
+});
 
 export const SigninSchema = z.object({
-    email:z.string().email(),
-    password:z.string().min(8, { message: "Password must be at least 8 characters long" })
-})
+  email: z.string().email(),
+  password: z
+    .string()
+    .min(8, { message: "Password must be at least 8 characters long" }),
+});
 
 export const RoomSchema = z.object({
-    roomName:z.string().min(3).max(30)
-})
-
+  roomName: z.string().min(3).max(30),
+});
 
 const client = new PrismaClient();
 
-
 const app = express();
 app.use(express.json());
-app.use(cors({origin:"*"}));
+app.use(cors({ origin: "*" }));
 
 const SALT_ROUNDS = 10;
 
@@ -61,7 +63,6 @@ declare global {
 app.get("/api/ping", (req, res) => {
   res.status(200).send("pong");
 });
-
 
 app.post("/api/signup", async (req: Request, res: Response) => {
   const validation = CreateUserSchema.safeParse(req.body);
@@ -148,7 +149,7 @@ app.post("/api/signin", async (req: Request, res: Response) => {
     });
     return;
   } catch (error) {
-    console.error(error)
+    console.error(error);
     res.status(500).json({
       message: "Internal server error during signin",
     });
@@ -337,9 +338,7 @@ function fileToGenerativePart(
   };
 }
 
-async function analyzeImage(
-  imageBuffer: Buffer,
-): Promise<object[]> {
+async function analyzeImage(imageBuffer: Buffer): Promise<object[]> {
   // Convert the dictionary of variables to a string
 
   // Build the prompt (mirroring your Python version) that includes the variables.
@@ -583,11 +582,18 @@ const IMG_CONFIG: Config = {
   progress: (k, c, t) => console.log(`Downloading ${k}: ${c}/${t}`),
 };
 
+import sharp from "sharp";
 
 async function remove(bufImage: Buffer): Promise<Buffer> {
   // Write the buffer to a temporary file
   const tempPath = join(tmpdir(), `improved_${Date.now()}.png`);
-  await fs.writeFile(tempPath, bufImage);
+
+  const pngBuffer = await sharp(bufImage)
+    .resize({ width: 1024 })
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+
+  await fs.writeFile(tempPath, pngBuffer);
 
   // Use file URL
   const fileUrl = pathToFileURL(tempPath).href;
@@ -601,31 +607,31 @@ async function remove(bufImage: Buffer): Promise<Buffer> {
   return outBuf;
 }
 
+app.post(
+  "/api/improve/ai",
+  upload.single("image"),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "No image provided" });
+        return;
+      }
 
+      const imageBuffer: Buffer = req.file.buffer;
 
-app.post("/api/improve/ai", upload.single("image"), async (req: Request, res: Response) => {
-  try {
-    if (!req.file) {
-      res.status(400).json({ error: "No image provided" });
-      return;
+      // Call your improveImage function that returns Bufferz of improved image
+      const improvedImageBuffer = await improveImage(imageBuffer);
+      const no_bg_image = await remove(improvedImageBuffer!);
+
+      res.setHeader("Content-Type", "image/png");
+
+      res.send(no_bg_image);
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ error: "Internal Server Error" });
     }
-
-    const imageBuffer: Buffer = req.file.buffer;
-
-    // Call your improveImage function that returns Bufferz of improved image
-    const improvedImageBuffer = await improveImage(imageBuffer);
-    const no_bg_image = await remove(improvedImageBuffer!)
-
-    res.setHeader("Content-Type", "image/png"); 
-    
-    res.send(no_bg_image);
-    
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "Internal Server Error" });
   }
-});
-
+);
 
 const PORT = 5000;
 
