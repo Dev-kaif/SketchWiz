@@ -589,7 +589,7 @@ async function remove(bufImage: Buffer): Promise<Buffer> {
   const tempPath = join(tmpdir(), `improved_${Date.now()}.png`);
 
   const pngBuffer = await sharp(bufImage)
-    .resize({ width: 1024 })
+    .resize({ width: 512 })
     .png({ compressionLevel: 9 })
     .toBuffer();
 
