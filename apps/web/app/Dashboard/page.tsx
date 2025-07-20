@@ -1,13 +1,43 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import axios from "../../Component/axios/index";
-import { useEffect, useRef, useState } from "react";
-import { BACKEND_URL } from "../../Component/Config";
+import axios from "@/Component/axios/index";
+import { useEffect, useRef, useState, RefObject } from "react";
+import { BACKEND_URL } from "@/Component/Config";
 import { useRouter } from "next/navigation";
-import { useNotification } from "../../Component/notification/notification";
-import { Button } from "@repo/ui/button";
-import Input from "@repo/ui/input";
-import { LogOutIcon } from "lucide-react";
+import { useNotification } from "@/Component/notification/notification";
+import { motion, AnimatePresence } from "motion/react";
+
+// ShadCN UI Components
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
+
+// Icons
+import {
+  LogOut,
+  PlusCircle,
+  Loader2,
+  Trash2,
+  DoorOpen,
+} from "lucide-react";
 
 interface RoomInterface {
   id: number;
@@ -16,31 +46,31 @@ interface RoomInterface {
   adminId: number;
 }
 
-function Page() {
+export default function DashboardPage() {
   const roomRef = useRef<HTMLInputElement>(null);
   const joinRoomRef = useRef<HTMLInputElement>(null);
   const [rooms, setRooms] = useState<RoomInterface[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [callBackend, setCallBackend] = useState(false);
   const router = useRouter();
   const { addNotification } = useNotification();
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // --- API FUNCTIONS ---
   async function createRoom() {
-    if (!roomRef.current) return;
-    const slug = roomRef.current.value.trim();
-    if (!slug) {
+    if (!roomRef.current?.value) {
       addNotification("error", "Room name cannot be empty");
       return;
     }
     setCreating(true);
     try {
-      await axios.post(`${BACKEND_URL}/api/room`, { roomName: slug });
+      await axios.post(`${BACKEND_URL}/api/room`, {
+        roomName: roomRef.current.value,
+      });
       addNotification("success", "Room Created Successfully");
       setCallBackend((prev) => !prev);
-      roomRef.current.value = "";
+      if (roomRef.current) roomRef.current.value = "";
     } catch (error: any) {
       addNotification(
         "error",
@@ -52,23 +82,22 @@ function Page() {
   }
 
   async function getRoomId() {
-    if (!joinRoomRef.current) return;
-    setJoining(true);
-    const slug = joinRoomRef.current.value.trim();
-    if (!slug) {
+    if (!joinRoomRef.current?.value) {
       addNotification("error", "Room name cannot be empty");
-      setJoining(false);
       return;
     }
+    setJoining(true);
     try {
-      const res = await axios.get(`${BACKEND_URL}/api/room/slug/${slug}`);
-      const room = res.data;
-      if (!room.room) {
+      const res = await axios.get(
+        `${BACKEND_URL}/api/room/slug/${joinRoomRef.current.value}`
+      );
+      if (!res.data.room) {
         addNotification("error", "Room doesn't exist");
+        setJoining(false);
         return;
       }
-      joinRoom(room.room.slug);
-      joinRoomRef.current.value = "";
+      joinRoom(res.data.room.slug);
+      if (joinRoomRef.current) joinRoomRef.current.value = "";
     } catch (error: any) {
       addNotification(
         "error",
@@ -79,25 +108,13 @@ function Page() {
     }
   }
 
-  useEffect(() => {
-    async function fetchRooms() {
-      setLoading(true);
-      try {
-        const res = await axios.get(`${BACKEND_URL}/api/rooms`);
-        setRooms(res.data.rooms);
-      } catch (error: any) {
-        addNotification("error",error.response?.data?.message)
-      } finally {
-        setLoading(false);
-      }
+  async function deleteRoom(id: number, slug: string) {
+    if (
+      !window.confirm(`Are you sure you want to delete the room "${slug}"?`)
+    ) {
+      return;
     }
-    fetchRooms();
-  }, [addNotification, callBackend]);
-
-  async function deleteRoom(id: number) {
-    if (!window.confirm("Are you sure you want to delete this room?")) return;
     try {
-      setDeleting(true);
       const res = await axios.delete(`${BACKEND_URL}/api/room/delete/${id}`);
       addNotification("success", res.data.message);
       setCallBackend((prev) => !prev);
@@ -106,237 +123,265 @@ function Page() {
         "error",
         error.response?.data?.message || "Error deleting room"
       );
-    } finally {
-      setDeleting(false);
     }
   }
 
   function joinRoom(slug: string) {
-    addNotification("success", "Joined Room Successfully");
+    addNotification("success", `Joining room: ${slug}`);
     router.push(`/canvas/${slug}`);
   }
 
   const handleLogout = () => {
     localStorage.removeItem("authorization");
     router.push("/");
+    addNotification("success", "You have been logged out.");
   };
 
+  useEffect(() => {
+    async function fetchRooms() {
+      setLoading(true);
+      try {
+        const res = await axios.get(`${BACKEND_URL}/api/rooms`);
+        setRooms(res.data.rooms);
+      } catch (error: any) {
+        addNotification(
+          "error",
+          error.response?.data?.message || "Failed to fetch rooms"
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchRooms();
+  }, [addNotification, callBackend]);
+
+  // --- RENDER ---
   return (
-    <div className="bg-[#191414] min-h-screen text-white relative flex flex-col">
-      {/* Header */}
-      <header className="flex justify-between items-center p-4 md:p-6">
-        <h1 className="text-2xl font-bold">SketchWiz</h1>
-        <Button
-          size="text-sm"
-          onClickHandler={() => setShowLogoutModal(true)}
-          className="secondary"
-        >
-          <div className="flex gap-2 items-center justify-center">
-            <span>Logout</span>
-            <LogOutIcon className="text-sm" />
-          </div>
-        </Button>
+    <div className="min-h-screen bg-[#111111] text-[#E8E8E8] font-sans">
+      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-lg bg-[#111111]/80 border-b border-[#333333]">
+        <div className="flex justify-between items-center max-w-7xl mx-auto px-6 h-16">
+          <Link href={"/"}>
+            <h1 className="text-xl font-bold text-white">
+              SketchWiz Dashboard
+            </h1>
+          </Link>
+          <UserMenu handleLogout={handleLogout} />
+        </div>
       </header>
 
-      {/* Logout Confirmation Modal */}
-      {showLogoutModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-[#191414] outline text-white rounded-lg p-6 mx-4 max-w-sm w-full">
-            <h3 className="text-xl font-semibold mb-4">Confirm Logout</h3>
-            <p className="mb-6">Are you sure you want to logout?</p>
-            <div className="flex justify-end gap-4">
-              <Button
-                onClickHandler={() => setShowLogoutModal(false)}
-                className="secondary"
-              >
-                Cancel
-              </Button>
-              <Button onClickHandler={handleLogout} className="destructive">
-                Logout
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <main className="pt-24 max-w-7xl mx-auto px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        >
+          <div className="flex flex-col md:flex-row items-start gap-8">
+            <aside className="w-full md:w-1/3 md:sticky md:top-24 space-y-8">
+              <ActionCard
+                title="Create a New Room"
+                description="Start a new collaborative canvas."
+                inputRef={roomRef}
+                placeholder="Enter new room name"
+                buttonText="Create Room"
+                loadingText="Creating..."
+                isLoading={creating}
+                onClick={createRoom}
+                Icon={PlusCircle}
+              />
+              <ActionCard
+                title="Join a Room"
+                description="Enter an existing room name to join."
+                inputRef={joinRoomRef}
+                placeholder="Enter room name to join"
+                buttonText="Join Room"
+                loadingText="Joining..."
+                isLoading={joining}
+                onClick={getRoomId}
+                Icon={DoorOpen}
+              />
+            </aside>
 
-      {/* Fixed overlay for deletion */}
-      {deleting && (
-        <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 z-50">
-          <div className="flex items-center gap-2 p-4 rounded-lg shadow-lg">
-            <span className="text-lg">Deleting...</span>
-            <svg
-              className="animate-spin h-8 w-8 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v8H4z"
-              ></path>
-            </svg>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content */}
-      <main className="flex-grow flex flex-col items-center mt-6">
-        <div className="w-full max-w-6xl px-4">
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* Left Column: Create and Join Rooms */}
-            <div className="flex flex-col gap-6 w-full md:w-1/3">
-              {/* Create Room Section */}
-              <div className="bg-gradient-to-tr from-[#0D2538] to-[#1A73E8] p-6 rounded-lg shadow-lg">
-                <h2 className="text-xl font-semibold mb-3">Create Room</h2>
-                <Input
-                  size="mt-3 w-full"
-                  inputRef={roomRef}
-                  type="text"
-                  place="Enter Room Name"
-                />
-                <Button
-                  processing={creating}
-                  onClickHandler={createRoom}
-                  size="mt-3 w-full"
-                  className="primary"
-                >
-                  {creating ? "Creating..." : "Create Room"}
-                </Button>
-              </div>
-              {/* Join Room Section */}
-              <div className="bg-gradient-to-tr from-[#0D2538] to-[#1A73E8] p-6 rounded-lg shadow-lg">
-                <h2 className="text-xl font-semibold mb-3">Join Any Room</h2>
-                <Input
-                  size="mt-3 w-full"
-                  place="Enter Room Name"
-                  type="text"
-                  inputRef={joinRoomRef}
-                />
-                <Button
-                  processing={joining}
-                  onClickHandler={getRoomId}
-                  size="mt-3 w-full"
-                  className="primary"
-                >
-                  {joining ? "Joining..." : "Join Room"}
-                </Button>
-              </div>
-            </div>
-            {/* Right Column: Rooms Table */}
-            <div className="w-full md:w-2/3 bg-gradient-to-tr from-[#0D2538] to-[#1A73E8] p-6 rounded-lg shadow-lg">
-              <h2 className="text-xl font-semibold mb-3">
-                Your Available Rooms
-              </h2>
-              {loading ? (
-                <div className="flex justify-center items-center py-10">
-                  <svg
-                    className="animate-spin h-8 w-8 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v8H4z"
-                    ></path>
-                  </svg>
-                </div>
-              ) : rooms.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full block md:table">
-                    <thead className="block md:table-header-group">
-                      <tr className="bg-[#27304b] text-gray-200 block md:table-row">
-                        <th className="px-4 py-2 text-left border-b border-gray-700">
-                          ID
-                        </th>
-                        <th className="px-4 py-2 text-left border-b border-gray-700">
-                          Room Name
-                        </th>
-                        <th className="px-4 py-2 text-left border-b border-gray-700">
-                          Created At
-                        </th>
-                        <th className="px-4 py-2 text-center border-b border-gray-700">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="block md:table-row-group">
-                      {rooms.map((room) => (
-                        <tr
-                          key={room.id}
-                          className="bg-[#0D2538] border-b border-gray-700 block md:table-row mb-4 md:mb-0"
-                        >
-                          <td
-                            className="px-4 py-2 block md:table-cell"
-                            data-label="ID"
-                          >
-                            {room.id}
-                          </td>
-                          <td
-                            className="px-4 py-2 block md:table-cell"
-                            data-label="Room Name"
-                          >
-                            {room.slug}
-                          </td>
-                          <td
-                            className="px-4 py-2 block md:table-cell"
-                            data-label="Created At"
-                          >
-                            {room.createdAt.split("T")[0]}
-                          </td>
-                          <td
-                            className="px-4 py-2 block md:table-cell"
-                            data-label="Actions"
-                          >
-                            <div className="flex justify-center gap-3">
-                              <Button
-                                onClickHandler={() => joinRoom(room.slug)}
-                                className="primary"
-                              >
-                                Join
-                              </Button>
-                              <Button
-                                onClickHandler={() => deleteRoom(room.id)}
-                                className="destructive"
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center text-gray-400 py-10">
-                  No rooms available
-                </div>
-              )}
+            <div className="w-full md:w-2/3">
+              <Card className="bg-[#1C1C1C] border-[#333333]">
+                <CardHeader>
+                  <CardTitle className="text-white">Your Rooms</CardTitle>
+                  <CardDescription>
+                    Here are all the rooms you have created or have access to.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <RoomsTable
+                    rooms={rooms}
+                    isLoading={loading}
+                    onJoin={joinRoom}
+                    onDelete={deleteRoom}
+                  />
+                </CardContent>
+              </Card>
             </div>
           </div>
-        </div>
+        </motion.div>
       </main>
     </div>
   );
 }
 
-export default Page;
+// --- SUB-COMPONENTS ---
+
+const UserMenu = ({ handleLogout }: { handleLogout: () => void }) => {
+  // A simple logout button is cleaner than a modal inside a dropdown
+  const confirmLogout = () => {
+    if (window.confirm("Are you sure you want to log out?")) {
+      handleLogout();
+    }
+  };
+  return (
+    <Button
+      onClick={confirmLogout}
+      variant="ghost"
+      className="hover:bg-[#1C1C1C] hover:text-white flex gap-2"
+    >
+      <LogOut className="mr-2 h-4 w-4" />
+      Logout
+    </Button>
+  );
+};
+
+interface ActionCardProps {
+  title: string;
+  description: string;
+  inputRef: RefObject<HTMLInputElement | null>;
+  placeholder: string;
+  buttonText: string;
+  loadingText: string;
+  isLoading: boolean;
+  onClick: () => void;
+  Icon: React.ElementType;
+}
+
+const ActionCard = ({
+  title,
+  description,
+  inputRef,
+  placeholder,
+  buttonText,
+  loadingText,
+  isLoading,
+  onClick,
+  Icon,
+}: ActionCardProps) => (
+  <Card className="bg-[#1C1C1C] border-[#333333]">
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2 text-white">
+        <Icon className="w-5 h-5" />
+        {title}
+      </CardTitle>
+      <CardDescription>{description}</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <Input
+        ref={inputRef}
+        type="text"
+        placeholder={placeholder}
+        className="bg-[#111111] border-[#333333] focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-[#00A3FF]"
+      />
+    </CardContent>
+    <CardFooter>
+      <Button
+        onClick={onClick}
+        disabled={isLoading}
+        className="w-full bg-[#00A3FF] hover:bg-[#00A3FF]/90 flex justify-center items-center gap-3"
+      >
+        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {isLoading ? loadingText : buttonText}
+      </Button>
+    </CardFooter>
+  </Card>
+);
+
+interface RoomsTableProps {
+  rooms: RoomInterface[];
+  isLoading: boolean;
+  onJoin: (slug: string) => void;
+  onDelete: (id: number, slug: string) => void;
+}
+
+const RoomsTable = ({
+  rooms,
+  isLoading,
+  onJoin,
+  onDelete,
+}: RoomsTableProps) => {
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[...Array(3)].map((_, i) => (
+          <Skeleton key={i} className="h-12 w-full bg-[#333333]" />
+        ))}
+      </div>
+    );
+  }
+
+  if (rooms.length === 0) {
+    return (
+      <div className="text-center py-12 text-[#b4b4b4]">
+        <p className="font-semibold">No rooms found.</p>
+        <p className="text-sm mt-1">Create a new room to get started.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-[#333333] rounded-lg">
+      <Table>
+        <TableHeader>
+          <TableRow className="border-b-[#333333] hover:bg-transparent">
+            <TableHead className="text-white">Room Name</TableHead>
+            <TableHead className="text-white">Created At</TableHead>
+            <TableHead className="text-right text-white flex justify-end mr-12 items-center ">
+              Actions
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <AnimatePresence>
+            {rooms.map((room) => (
+              <motion.tr
+                key={room.id}
+                layout
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="border-b-0"
+              >
+                <TableCell className="font-medium">{room.slug}</TableCell>
+                <TableCell className="text-[#b4b4b4]">
+                  {new Date(room.createdAt).toLocaleDateString()}
+                </TableCell>
+                <TableCell className="text-right flex justify-end gap-5">
+                  <Button
+                    onClick={() => onJoin(room.slug)}
+                    variant="ghost"
+                    size="sm"
+                    className="mr-2 bg-blue-500 hover:bg-[#00A3FF]/20 hover:text-white"
+                  >
+                    Join
+                  </Button>
+                  <Button
+                    onClick={() => onDelete(room.id, room.slug)}
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-500 hover:bg-red-500/10 hover:text-red-400 flex justify-center items-center"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </motion.tr>
+            ))}
+          </AnimatePresence>
+        </TableBody>
+      </Table>
+    </div>
+  );
+};

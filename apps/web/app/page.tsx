@@ -1,434 +1,524 @@
 "use client";
-import { useEffect, useState } from "react";
-import Head from "next/head";
+
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "motion/react";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from "next/image";
-import { motion } from "motion/react";
-import { Button } from "@repo/ui/button";
 import { useRouter } from "next/navigation";
 import {
-  Mail,
-  Instagram,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+// Icons
+import {
+  BrainCircuit,
+  Users,
+  Paintbrush,
   Twitter,
   Github,
   Linkedin,
-  ArrowRightToLine,
+  ChevronRight,
+  Plus,
+  Minus,
 } from "lucide-react";
 
-// Define animation variants for fade-in and slide-in effects
-const fadeInVariant = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 1.5, ease: "easeIn" } },
-};
+// MAIN LANDING PAGE COMPONENT
+export default function CleanSaaS_LandingPage() {
+  return (
+    <main className="min-h-screen bg-[#111111] text-[#E8E8E8] font-sans">
+      <Navbar />
+      <div className="pt-16">
+        {" "}
+        {/* Adjusted padding to match navbar height */}
+        <HeroSection />
+        <FeaturesSection />
+        <TestimonialsSection />
+        <AboutSection />
+        <FaqSection />
+        <FinalCTA />
+      </div>
+      <Footer />
+    </main>
+  );
+}
 
-const slideInVariant = {
-  hidden: { y: 20, opacity: 0 },
-  visible: { y: 0, opacity: 1, transition: { duration: 1, ease: "easeOut" } },
-};
-
-export default function HomePage() {
-  // FAQ items with questions and answers
-  const faqItems = [
-    {
-      question: "What is SketchWiz?",
-      answer:
-        "SketchWiz is a digital sketching platform that offers an infinite canvas and collaborative tools, making it easy for creative minds to bring their ideas to life.",
-    },
-    {
-      question: "How do collaborative features work?",
-      answer:
-        "Our real-time collaboration feature allows multiple users to work on the same canvas simultaneously, enabling seamless teamwork and creative exchange.",
-    },
-    {
-      question: "How do I save my work?",
-      answer:
-        "Your sketches are automatically saved, and you also have the option to manually save or export your creations in multiple formats.",
-    },
-    {
-      question: "Is there a mobile version available?",
-      answer:
-        "No, SketchWiz will be fully optimized for mobile devices, providing a smooth and responsive experience across all platforms.",
-    },
-    {
-      question: "Can I export my drawings?",
-      answer: "Currently NO but in future Yes.",
-    },
-  ];
-
-  // State to track which FAQ items are open
-  const [openFaq, setOpenFaq] = useState<{ [key: number]: boolean }>({});
+const Navbar = () => {
   const router = useRouter();
-  const [alreadyLogged, setAlreadyLogged] = useState(false);
 
-  const toggleFaq = (index: number) => {
-    setOpenFaq((prev) => ({
-      ...prev,
-      [index]: !prev[index],
-    }));
-  };
+  return (
+    <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-lg bg-[#111111]/80 border-b border-[#333333]">
+      <motion.div
+        initial={{ y: -40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="flex justify-between items-center max-w-7xl mx-auto px-6 h-16"
+      >
+        <Link href="/" className="font-bold text-xl text-white">
+          SketchWiz
+        </Link>
+        <div className="hidden md:flex gap-2 items-center">
+          {["About", "Features", "FAQ"].map((item) => (
+            <Link key={item} href={`#${item}`}>
+              <Button
+                variant="ghost"
+                className="text-[#E8E8E8] hover:bg-[#1C1C1C] hover:text-white"
+              >
+                {item}
+              </Button>
+            </Link>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => router.push("/auth")}
+            size="default"
+            variant="ghost"
+            className="text-[#E8E8E8] hover:bg-[#1C1C1C] hover:text-white text-sm"
+          >
+            Sign In
+          </Button>
+          <Button
+            onClick={() => router.push("/auth")}
+            className="bg-[#00A3FF] text-white text-sm font-semibold hover:bg-[#00A3FF]/90 rounded-md"
+          >
+            Get Started
+          </Button>
+        </div>
+      </motion.div>
+    </header>
+  );
+};
+
+const sectionAnimation = {
+  initial: { opacity: 0, y: 30 },
+  whileInView: { opacity: 1, y: 0 },
+  transition: { duration: 0.6, ease: "easeOut" },
+  viewport: { once: true, amount: 0.3 },
+};
+
+const HeroSection = () => {
+  const [isLogged, setIsLogged] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const token = localStorage.getItem("authorization");
     if (token) {
-      setAlreadyLogged(true);
+      setIsLogged(true);
     }
   }, []);
 
   return (
-    <>
-      <Head>
-        <title>SketchWiz - Unleash Your Creativity</title>
-        <meta
-          name="description"
-          content="SketchWiz is a powerful, intuitive sketching tool designed to boost your creativity."
-        />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </Head>
-
-      {/* Main container with a dark theme using Tailwind arbitrary colors */}
-      <div className="bg-[#191414] text-white min-h-screen">
-        {/* Navigation Bar */}
-        <motion.nav
-          className="container mx-auto px-6 py-4 flex justify-between items-center"
-          initial="hidden"
-          animate="visible"
-          variants={fadeInVariant}
-        >
-          <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-bold">SketchWiz</h1>
-          </div>
-          <ul className="hidden md:flex space-x-6">
-            <li className="hover:text-[#1DB954] transition-colors duration-300">
-              <a href="#hero">Home</a>
-            </li>
-            <li className="hover:text-[#1DB954] transition-colors duration-300">
-              <a href="#features">Features</a>
-            </li>
-            <li className="hover:text-[#1DB954] transition-colors duration-300">
-              <a href="#demo">Demo</a>
-            </li>
-            <li className="hover:text-[#1DB954] transition-colors duration-300">
-              <a href="#testimonials">Testimonials</a>
-            </li>
-            <li className="hover:text-[#1DB954] transition-colors duration-300">
-              <a href="#about">About</a>
-            </li>
-            <li className="hover:text-[#1DB954] transition-colors duration-300">
-              <a href="#faq">FAQ</a>
-            </li>
-          </ul>
-        </motion.nav>
-
-        {/* Hero Section */}
-        <motion.section
-          id="hero"
-          className="container mx-auto px-6 py-20 text-center my-20"
-          initial="hidden"
-          animate="visible"
-          variants={fadeInVariant}
-        >
-          <h2 className="text-4xl md:text-6xl font-extrabold mb-6">
-            Unleash Your Creativity with SketchWiz
-          </h2>
-          <p className="text-lg md:text-2xl mb-8 text-gray-300">
-            Your next-level drawing and sketching tool. Simple, intuitive, and
-            powerful.
-          </p>
-          <div className="flex items-center justify-center gap-5">
-            {alreadyLogged && (
-              <div className="text-lg md:text-xl text-gray-300">
-                Welcome Back
-              </div>
-            )}
-            <Button
-              onClickHandler={() => {
-                if (alreadyLogged) {
-                  router.push("/Dashboard");
-                  return;
-                }
+    <section className="py-32 md:py-48 flex flex-col items-center justify-center text-center">
+      <motion.div {...sectionAnimation} className="relative z-10 px-6">
+        <h1 className="text-4xl md:text-6xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400">
+          From Complex Sketch
+          <br />
+          to Clear Solution, Instantly.
+        </h1>
+        <p className="mt-6 max-w-2xl mx-auto text-lg text-[#b4b4b4]">
+          SketchWiz is an AI-powered collaborative canvas that understands your
+          ideas, solves problems, and enhances your creativity in real-time.
+        </p>
+        <div className="mt-8 flex justify-center items-center gap-4">
+          <Button
+            onClick={() => {
+              if (isLogged) {
+                router.push("/Dashboard");
+              } else {
                 router.push("/auth");
-              }}
-              className="primary"
-            >
-              <div className="flex items-center gap-2">
-                <div>{alreadyLogged ? "Continue" : "Get Started"}</div>
-                {alreadyLogged && <ArrowRightToLine />}
-              </div>
-            </Button>
-          </div>
-        </motion.section>
-
-        {/* Features Overview */}
-        <motion.section
-          id="features"
-          className="container mx-auto px-6 py-16"
-          initial="hidden"
-          animate="visible"
-          variants={slideInVariant}
-        >
-          <h3 className="text-3xl font-bold text-center mb-10">Features</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="p-6 bg-[#333333] rounded-lg hover:shadow-xl transition-shadow duration-300">
-              <h4 className="text-xl font-semibold mb-2">Infinite Canvas</h4>
-              <p className="text-gray-400">
-                Experience limitless creativity with an endless workspace that
-                adapts to your vision.
-              </p>
-            </div>
-            <div className="p-6 bg-[#333333] rounded-lg hover:shadow-xl transition-shadow duration-300">
-              <h4 className="text-xl font-semibold mb-2">
-                Collaborative Tools
-              </h4>
-              <p className="text-gray-400">
-                Work in real-time with friends or colleagues to create together.
-              </p>
-            </div>
-            <div className="p-6 bg-[#333333] rounded-lg hover:shadow-xl transition-shadow duration-300">
-              <h4 className="text-xl font-semibold mb-2">Powerful Editing</h4>
-              <p className="text-gray-400">
-                Advanced features that provide both precision and flexibility in
-                your designs.
-              </p>
-            </div>
-          </div>
-        </motion.section>
-
-        {/* Screenshots / Demo Section */}
-        <motion.section
-          id="demo"
-          className="container mx-auto px-6 py-16"
-          initial="hidden"
-          animate="visible"
-          variants={fadeInVariant}
-        >
-          <h3 className="text-3xl font-bold text-center mb-10">
-            See SketchWiz in Action
-          </h3>
-          <div className="flex flex-col md:flex-row items-center justify-center gap-8">
-            <div className="relative w-full md:w-1/3 h-64">
-              <Image
-                src="/maths.png"
-                alt="SketchWiz Demo 1"
-                fill
-                unoptimized
-                className="rounded-lg shadow-lg hover:scale-105 transition-transform duration-300 object-cover"
-              />
-            </div>
-            <div className="relative w-full md:w-1/3 h-64">
-              <Image
-                src="/image.png"
-                alt="SketchWiz Demo 2"
-                fill
-                unoptimized
-                className="rounded-lg shadow-lg hover:scale-105 transition-transform duration-300 object-cover"
-              />
-            </div>
-            <div className="relative w-full md:w-1/3 h-64">
-              <Image
-                src="/real.png"
-                alt="SketchWiz Demo 3"
-                fill
-                unoptimized
-                className="rounded-lg shadow-lg hover:scale-105 transition-transform duration-300 object-cover"
-              />
-            </div>
-          </div>
-        </motion.section>
-
-        {/* Testimonials / Feedback Section */}
-        <motion.section
-          id="testimonials"
-          className="container mx-auto px-6 py-16"
-          initial="hidden"
-          animate="visible"
-          variants={slideInVariant}
-        >
-          <h3 className="text-3xl font-bold text-center mb-10">
-            What Our Users Say
-          </h3>
-          <div className="flex flex-col md:flex-row gap-8">
-            <div className="bg-[#333333] p-6 rounded-lg shadow-md flex-1">
-              <p className="italic text-gray-400">
-                &quot;SketchWiz has completely transformed the way I create digital
-                art. Highly recommended!&quot;
-              </p>
-              <p className="mt-4 font-bold">– Alex D.</p>
-            </div>
-            <div className="bg-[#333333] p-6 rounded-lg shadow-md flex-1">
-              <p className="italic text-gray-400">
-                &quot;The collaborative features are a game-changer. It&apos;s like having
-                a digital studio at my fingertips.&quot;
-              </p>
-              <p className="mt-4 font-bold">– Jamie L.</p>
-            </div>
-            <div className="bg-[#333333] p-6 rounded-lg shadow-md flex-1">
-              <p className="italic text-gray-400">
-                &quot;Intuitive, powerful, and fun to use. SketchWiz is my go-to app
-                for quick sketches.&quot;
-              </p>
-              <p className="mt-4 font-bold">– Morgan S.</p>
-            </div>
-          </div>
-        </motion.section>
-
-        {/* About Section */}
-        <motion.section
-          id="about"
-          className="container mx-auto px-6 py-16"
-          initial="hidden"
-          animate="visible"
-          variants={fadeInVariant}
-        >
-          <h3 className="text-3xl font-bold text-center mb-10">
-            About SketchWiz
-          </h3>
-          <div className="max-w-4xl mx-auto text-center">
-            <p className="text-lg text-gray-300 mb-4">
-              SketchWiz is the ultimate digital sketching platform designed for
-              artists, designers, and creative enthusiasts. Our innovative
-              approach combines an infinite canvas with powerful editing tools
-              and real-time collaboration, ensuring that your creative process
-              is as fluid and boundless as your imagination.
-            </p>
-            <p className="text-lg text-gray-300">
-              Whether you&apos;re a seasoned professional or just beginning your
-              creative journey, SketchWiz offers an intuitive and flexible
-              workspace that adapts to your needs.
-            </p>
-          </div>
-        </motion.section>
-
-        {/* FAQ Section with Accordion */}
-        <motion.section
-          id="faq"
-          className="container mx-auto px-6 py-16"
-          initial="hidden"
-          animate="visible"
-          variants={slideInVariant}
-        >
-          <h3 className="text-3xl font-bold text-center mb-10">
-            Frequently Asked Questions
-          </h3>
-          <div className="max-w-4xl mx-auto space-y-4">
-            {faqItems.map((item, index) => (
-              <div key={index} className="border border-gray-700 rounded-md">
-                <button
-                  onClick={() => toggleFaq(index)}
-                  className="w-full text-left px-4 py-3 focus:outline-none flex justify-between items-center"
-                >
-                  <span className="text-lg font-medium">{item.question}</span>
-                  <span>{openFaq[index] ? "-" : "+"}</span>
-                </button>
-                {openFaq[index] && (
-                  <div className="px-4 py-3 border-t border-gray-700">
-                    <p className="text-gray-400">{item.answer}</p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </motion.section>
-
-        {/* Footer */}
-        <footer className="bg-[#121212] text-white py-12">
-          <div className=" px-6 md:flex justify-between items-center ">
-            {/* Company Info */}
-            <div>
-              <h2 className="text-9xl font-bold mb-4">SketchWiz</h2>
-            </div>
-
-            {/* Quick Links */}
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Quick Links</h3>
-              <ul>
-                <li className="mb-2">
-                  <a
-                    href="#hero"
-                    className="hover:text-[#1DB954] transition-colors duration-300"
-                  >
-                    Home
-                  </a>
-                </li>
-                <li className="mb-2">
-                  <a
-                    href="#features"
-                    className="hover:text-[#1DB954] transition-colors duration-300"
-                  >
-                    Features
-                  </a>
-                </li>
-                <li className="mb-2">
-                  <a
-                    href="#about"
-                    className="hover:text-[#1DB954] transition-colors duration-300"
-                  >
-                    About
-                  </a>
-                </li>
-                <li className="mb-2">
-                  <a
-                    href="#faq"
-                    className="hover:text-[#1DB954] transition-colors duration-300"
-                  >
-                    FAQ
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Social & Contact */}
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Connect With Us</h3>
-              <div className="flex space-x-4">
-                <a
-                  href="mailto:contact@sketchwiz.com"
-                  className="hover:text-[#1DB954] transition-colors duration-300"
-                >
-                  <Mail size={24} />
-                </a>
-                <a
-                  href="https://instagram.com/sketchwiz"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[#1DB954] transition-colors duration-300"
-                >
-                  <Instagram size={24} />
-                </a>
-                <a
-                  href="https://twitter.com/sketchwiz"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[#1DB954] transition-colors duration-300"
-                >
-                  <Twitter size={24} />
-                </a>
-                <a
-                  href="https://github.com/sketchwiz"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[#1DB954] transition-colors duration-300"
-                >
-                  <Github size={24} />
-                </a>
-                <a
-                  href="https://linkedin.com/company/sketchwiz"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[#1DB954] transition-colors duration-300"
-                >
-                  <Linkedin size={24} />
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Copyright */}
-          <div className="container mx-auto px-6 mt-8 text-center">
-            <p className="text-gray-500">
-              &copy; {new Date().getFullYear()} SketchWiz. All rights reserved.
-            </p>
-          </div>
-        </footer>
-      </div>
-    </>
+              }
+            }}
+            size="default"
+            className="bg-[#00A3FF] text-white font-semibold hover:bg-[#00A3FF]/90 rounded-md shadow-lg shadow-[#00A3FF]/20"
+          >
+            {isLogged ? "Continue to Dashboard" : "Get Started For Free"}
+          </Button>
+          <Button
+            size="default"
+            variant="outline"
+            className="text-white border-[#333333] bg-transparent hover:bg-[#1C1C1C] hover:text-white rounded-md flex gap-2"
+          >
+            <ChevronRight className="w-4 h-4 mr-2" />
+            Watch Demo
+          </Button>
+        </div>
+      </motion.div>
+    </section>
   );
-}
+};
+
+const AboutSection = () => {
+  return (
+    <section
+      id="About"
+      className="py-24 px-6 bg-[#1C1C1C] border-y border-[#333333]"
+    >
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+        <motion.div {...sectionAnimation}>
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
+            Our Mission: To merge creativity with intelligence.
+          </h2>
+          <p className="mt-6 text-lg text-[#b4b4b4]">
+            SketchWiz started with a simple idea: what if a whiteboard could do
+            more than just display ideas? What if it could understand them,
+            solve them, and beautify them?
+          </p>
+          <p className="mt-4 text-lg text-[#b4b4b4]">
+            We are a small team of developers and designers passionate about
+            building tools that augment human creativity. We believe AI should
+            be an intuitive partner in the creative process, accessible to
+            everyone from students to professional artists and engineers.
+          </p>
+        </motion.div>
+        <motion.div
+          {...sectionAnimation}
+          variants={{
+            ...sectionAnimation,
+            transition: { ...sectionAnimation.transition },
+          }}
+        >
+          <div className="rounded-2xl border border-[#333333] p-2">
+            <Image
+              height={100}
+              width={100}
+              src="/real.png"
+              alt="A collaborative session in SketchWiz"
+              className="w-full h-auto rounded-lg"
+            />
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+//--- FEATURES SECTION ---//
+const features = [
+  {
+    icon: <BrainCircuit className="w-6 h-6 text-[#00A3FF]" />,
+    title: "AI Problem Solving",
+    description:
+      "Draw any math or physics problem and let our Gemini-powered AI find the solution instantly.",
+  },
+  {
+    icon: <Users className="w-6 h-6 text-[#00A3FF]" />,
+    title: "Real-Time Collaboration",
+    description:
+      "Work together on an infinite canvas. See every stroke, sketch, and solution as it happens.",
+  },
+  {
+    icon: <Paintbrush className="w-6 h-6 text-[#00A3FF]" />,
+    title: "Intelligent Sketch Enhancement",
+    description:
+      "Transform your rough ideas into polished art. Our AI improves your sketches with a single click.",
+  },
+];
+
+const FeaturesSection = () => {
+  return (
+    <section
+      id="Features"
+      className="py-24 px-6 bg-[#1C1C1C] border-y border-[#333333]"
+    >
+      <motion.div
+        {...sectionAnimation}
+        className="text-center max-w-3xl mx-auto"
+      >
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+          An Intelligent Canvas Built for Clarity
+        </h2>
+        <p className="mt-4 text-lg text-[#b4b4b4]">
+          Everything you need to create, collaborate, and innovate, all in one
+          place.
+        </p>
+      </motion.div>
+
+      <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+        {features.map((feature) => (
+          <motion.div key={feature.title} variants={sectionAnimation}>
+            <Card className="h-full bg-transparent border-none shadow-none">
+              <CardHeader className="flex flex-col items-start gap-4">
+                <div className="p-3 bg-[#00A3FF]/10 rounded-lg">
+                  {feature.icon}
+                </div>
+                <CardTitle className="text-xl text-white">
+                  {feature.title}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-[#b4b4b4]">{feature.description}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+//--- TESTIMONIALS SECTION ---//
+const testimonials = [
+  {
+    quote:
+      "SketchWiz has revolutionized how our team brainstorms. The AI features are mind-blowing and save us hours of work.",
+    name: "Alex Johnson",
+    title: "Product Lead, Innovate Inc.",
+  },
+  {
+    quote:
+      "As an artist, the sketch enhancement feature is a game-changer. It takes my digital art to the next level with zero effort.",
+    name: "Samantha Lee",
+    title: "Digital Artist",
+  },
+];
+
+const TestimonialsSection = () => (
+  <section className="py-24 px-6">
+    <motion.div {...sectionAnimation} className="text-center max-w-3xl mx-auto">
+      <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+        Trusted by Creators and Innovators
+      </h2>
+    </motion.div>
+    <div className="mt-16 max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+      {testimonials.map((testimonial, index) => (
+        <motion.div key={index} variants={sectionAnimation}>
+          <Card className="h-full bg-[#1C1C1C] border-[#333333]">
+            <CardContent className="pt-8">
+              <p className="text-lg text-[#E8E8E8]">
+                &ldquo;{testimonial.quote}&ldquo;
+              </p>
+              <div className="mt-6">
+                <p className="font-semibold text-white">{testimonial.name}</p>
+                <p className="text-sm text-[#b4b4b4]">{testimonial.title}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      ))}
+    </div>
+  </section>
+);
+
+//--- FAQ SECTION ---//
+const faqs = [
+  {
+    question: "What is SketchWiz?",
+    answer:
+      "SketchWiz is a real-time collaborative digital canvas powered by Google's Gemini AI. It's designed to help users solve complex problems, enhance their art, and work together seamlessly.",
+  },
+  {
+    question: "How does the real-time collaboration work?",
+    answer:
+      "Users can create or join rooms. Any drawing or action is instantly visible to all other users in the same room via a secure WebSocket connection.",
+  },
+  {
+    question: "Is my data secure?",
+    answer:
+      "Yes, data security is our top priority. All data is transmitted over secure channels and we employ modern authentication and authorization practices to protect your work.",
+  },
+  {
+    question: "Can I use this for commercial purposes?",
+    answer:
+      "Yes, our Pro plan is designed for commercial use and includes advanced features, unlimited storage, and priority support for professional teams and individuals.",
+  },
+];
+
+const FaqSection = () => {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const answerVariants = {
+    hidden: { opacity: 0, height: 0, y: -10 },
+    visible: { opacity: 1, height: "auto", y: 0 },
+    exit: { opacity: 0, height: 0, y: -10 },
+  };
+
+  return (
+    <section id="FAQ" className="py-24 px-6">
+      <motion.div {...sectionAnimation} className="max-w-3xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
+            Frequently Asked Questions
+          </h2>
+          <p className="mt-4 text-lg text-[#b4b4b4]">
+            Your questions, answered.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {faqs.map((faq, index) => (
+            <div
+              key={index}
+              className="overflow-hidden border-b border-[#333333]"
+            >
+              <motion.button
+                onClick={() => setOpenIndex(openIndex === index ? null : index)}
+                className="w-full flex justify-between items-center text-left py-5"
+                whileHover={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}
+                transition={{ duration: 0.2 }}
+              >
+                <span className="text-lg font-medium text-white">
+                  {faq.question}
+                </span>
+                <AnimatePresence initial={false} mode="wait">
+                  <motion.div
+                    key={openIndex === index ? "minus" : "plus"}
+                    initial={{ rotate: -90, opacity: 0 }}
+                    animate={{ rotate: 0, opacity: 1 }}
+                    exit={{ rotate: 90, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {openIndex === index ? (
+                      <Minus className="w-5 h-5 text-[#00A3FF]" />
+                    ) : (
+                      <Plus className="w-5 h-5 text-[#b4b4b4]" />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </motion.button>
+
+              <AnimatePresence>
+                {openIndex === index && (
+                  <motion.div
+                    variants={answerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    className="px-1"
+                  >
+                    <p className="pb-5 text-base text-[#b4b4b4]">
+                      {faq.answer}
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    </section>
+  );
+};
+
+const FinalCTA = () => (
+  <section className="py-24 px-6">
+    <motion.div
+      {...sectionAnimation}
+      className="max-w-3xl mx-auto text-center bg-[#1C1C1C] border border-[#333333] rounded-2xl p-8 md:p-12"
+    >
+      <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
+        Ready to Transform Your Ideas?
+      </h2>
+      <p className="mt-4 max-w-xl mx-auto text-lg text-[#b4b4b4]">
+        Join thousands of users and bring your sketches to life. Get started for
+        free, no credit card required.
+      </p>
+      <div className="mt-8">
+        <Button
+          size="default"
+          className="bg-[#00A3FF] text-white font-semibold hover:bg-[#00A3FF]/90 rounded-md shadow-lg shadow-[#00A3FF]/20"
+        >
+          Sign Up Now
+        </Button>
+      </div>
+    </motion.div>
+  </section>
+);
+
+//--- FOOTER ---//
+const Footer = () => (
+  <footer className="bg-[#1C1C1C] py-12 px-6 border-t border-[#333333]">
+    <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div className="col-span-1 md:col-span-2">
+        <h3 className="text-xl font-bold text-white">SketchWiz</h3>
+        <p className="mt-2 text-sm text-[#b4b4b4]">
+          The intelligent canvas for modern teams.
+        </p>
+      </div>
+      <div>
+        <h4 className="font-semibold text-white">Product</h4>
+        <ul className="mt-4 space-y-2 text-sm">
+          <li>
+            <Link
+              href="#"
+              className="text-[#b4b4b4] hover:text-white transition-colors"
+            >
+              Features
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="#"
+              className="text-[#b4b4b4] hover:text-white transition-colors"
+            >
+              Pricing
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="#"
+              className="text-[#b4b4b4] hover:text-white transition-colors"
+            >
+              Collaboration
+            </Link>
+          </li>
+        </ul>
+      </div>
+      <div>
+        <h4 className="font-semibold text-white">Follow Us</h4>
+        <div className="mt-4 flex space-x-4">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  href="#"
+                  className="text-[#b4b4b4] hover:text-white transition-colors"
+                >
+                  <Twitter size={20} />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Twitter</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  href="#"
+                  className="text-[#b4b4b4] hover:text-white transition-colors"
+                >
+                  <Github size={20} />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>GitHub</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  href="#"
+                  className="text-[#b4b4b4] hover:text-white transition-colors"
+                >
+                  <Linkedin size={20} />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>LinkedIn</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
+    </div>
+    <div className="mt-12 pt-8 border-t border-[#333333] text-center text-sm text-[#b4b4b4]">
+      <p>&copy; {new Date().getFullYear()} SketchWiz. All rights reserved.</p>
+    </div>
+  </footer>
+);
