@@ -4,8 +4,9 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 // import { client } from "@repo/db/client";
 import { PrismaClient } from "@prisma/client";
 import "dotenv/config";
-const JWT_SECRET = process.env.JWT_SECRET;
+import "./corn.js"
 
+const JWT_SECRET = process.env.JWT_SECRET;
 const client = new PrismaClient();
 
 const wss = new WebSocketServer({ port: 8000 });
