@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import '@repo/ui/styles.css'
+// import '@repo/ui/styles.css'
 import { NotificationProvider } from "../Component/notification/notification";
 
 export const metadata: Metadata = {

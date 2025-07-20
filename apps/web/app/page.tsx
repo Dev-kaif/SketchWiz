@@ -49,7 +49,15 @@ export default function CleanSaaS_LandingPage() {
 }
 
 const Navbar = () => {
+  const [isLogged, setIsLogged] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem("authorization");
+    if (token) {
+      setIsLogged(true);
+    }
+  }, []);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-lg bg-[#111111]/80 border-b border-[#333333]">
@@ -76,7 +84,7 @@ const Navbar = () => {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            onClick={() => router.push("/auth")}
+            onClick={() => router.push("/auth?login=true")}
             size="default"
             variant="ghost"
             className="text-[#E8E8E8] hover:bg-[#1C1C1C] hover:text-white text-sm"
@@ -84,7 +92,13 @@ const Navbar = () => {
             Sign In
           </Button>
           <Button
-            onClick={() => router.push("/auth")}
+            onClick={() => {
+              if (isLogged) {
+                router.push("/Dashboard");
+              } else {
+                router.push("/auth");
+              }
+            }}
             className="bg-[#00A3FF] text-white text-sm font-semibold hover:bg-[#00A3FF]/90 rounded-md"
           >
             Get Started

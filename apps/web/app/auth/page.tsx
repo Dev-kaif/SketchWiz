@@ -6,7 +6,7 @@ import Silder from "@/Component/auth/slider";
 import Signup from "@/Component/auth/signup";
 import Login from "@/Component/auth/login";
 
-function Page() {
+function AuthPage() {
   const [isLoginView, setIsLoginView] = useState(false);
   const searchParams = useSearchParams();
 
@@ -67,4 +67,12 @@ function Page() {
   );
 }
 
-export default Page;
+import { Suspense } from "react";
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AuthPage />
+    </Suspense>
+  );
+}
