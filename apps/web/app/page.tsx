@@ -153,6 +153,7 @@ const HeroSection = () => {
           >
             {isLogged ? "Continue to Dashboard" : "Get Started For Free"}
           </Button>
+          <Link herf={"https://www.youtube.com/watch?v=UU-s-GS0FT8"}>
           <Button
             size="default"
             variant="outline"
@@ -161,6 +162,7 @@ const HeroSection = () => {
             <ChevronRight className="w-4 h-4 mr-2" />
             Watch Demo
           </Button>
+          </Link>
         </div>
       </motion.div>
     </section>
