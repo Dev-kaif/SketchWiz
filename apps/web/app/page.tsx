@@ -153,7 +153,7 @@ const HeroSection = () => {
           >
             {isLogged ? "Continue to Dashboard" : "Get Started For Free"}
           </Button>
-          <Link herf={"https://www.youtube.com/watch?v=UU-s-GS0FT8"}>
+          <Link href={"https://www.youtube.com/watch?v=UU-s-GS0FT8"}>
           <Button
             size="default"
             variant="outline"
